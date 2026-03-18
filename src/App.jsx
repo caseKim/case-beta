@@ -8,6 +8,7 @@ const PLAYER_R       = 24
 const ENEMY_R        = 18
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
+const HOMING_SPEED   = 2.5
 const SPAWN_INTERVAL = 1200
 
 // CSS: scale canvas container to fit viewport, keep 9:16
@@ -98,12 +99,16 @@ export default function App() {
   useEffect(() => {
     if (gameOver || paused) return
     const id = setInterval(() => {
-      const fast = Math.random() < 0.25
+      const rand   = Math.random()
+      const fast   = rand < 0.25
+      const homing = rand >= 0.85
       enemiesRef.current.push({
-        x: ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
-        y: -ENEMY_R,
-        r: fast ? ENEMY_R - 4 : ENEMY_R,
-        speed: fast ? FAST_SPEED : ENEMY_SPEED,
+        x:     ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
+        y:     -ENEMY_R,
+        r:     fast ? ENEMY_R - 4 : ENEMY_R,
+        speed: fast ? FAST_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED,
+        color: homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
+        homing,
       })
     }, SPAWN_INTERVAL)
     return () => clearInterval(id)
@@ -203,11 +208,21 @@ export default function App() {
         drawCircle(ctx, b.x, b.y, b.r, '#ffe600', 10)
 
       // Move & draw enemies
-      enemiesRef.current = enemiesRef.current.filter(e => e.y < GAME_H + ENEMY_R)
+      enemiesRef.current = enemiesRef.current.filter(e =>
+        e.y < GAME_H + ENEMY_R && e.y > -ENEMY_R * 2 &&
+        e.x > -ENEMY_R * 2   && e.x < GAME_W + ENEMY_R * 2
+      )
       for (const e of enemiesRef.current) {
-        e.y += e.speed
+        if (e.homing) {
+          const dx = p.x - e.x, dy = p.y - e.y
+          const dist = Math.hypot(dx, dy) || 1
+          e.x += (dx / dist) * e.speed
+          e.y += (dy / dist) * e.speed
+        } else {
+          e.y += e.speed
+        }
         if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
-        drawCircle(ctx, e.x, e.y, e.r, e.speed === FAST_SPEED ? '#ff9f0a' : '#ff2d55', 14)
+        drawCircle(ctx, e.x, e.y, e.r, e.color, 14)
       }
 
       // Draw player
