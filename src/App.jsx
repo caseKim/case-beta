@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 const GAME_W = 390
 const GAME_H = 693
 
-const PLAYER_R       = 24
-const ENEMY_R        = 18
+const PLAYER_R       = 18
+const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
 const SPAWN_INTERVAL = 1200
+const DEFAULT_STATS  = { bulletSpeed: 6, bulletR: 3, shootInterval: 400, multiShot: false }
 
 // CSS: scale canvas container to fit viewport, keep 9:16
 const CANVAS_STYLE = {
@@ -28,7 +29,8 @@ const UPGRADES = [
 
 function collides(a, b) {
   const dx = a.x - b.x, dy = a.y - b.y
-  return Math.sqrt(dx * dx + dy * dy) < a.r + b.r
+  const sr = a.r + b.r
+  return dx * dx + dy * dy < sr * sr
 }
 
 function pickCards() {
@@ -63,7 +65,7 @@ export default function App() {
   const scoreRef    = useRef(0)
   const gameOverRef = useRef(false)
   const xpRef       = useRef({ current: 0, level: 1, max: 5 })
-  const statsRef    = useRef({ bulletSpeed: 6, bulletR: 5, shootInterval: 400, multiShot: false })
+  const statsRef    = useRef({ ...DEFAULT_STATS })
   const lastShotRef = useRef(0)
   const rectRef     = useRef(null)  // cached canvas bounding rect
 
@@ -252,7 +254,7 @@ export default function App() {
     gameOverRef.current = false
     playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R }
     xpRef.current       = { current: 0, level: 1, max: 5 }
-    statsRef.current    = { bulletSpeed: 6, bulletR: 5, shootInterval: 400, multiShot: false }
+    statsRef.current    = { ...DEFAULT_STATS }
     setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
   }
 
