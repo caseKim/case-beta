@@ -20,11 +20,11 @@ const CANVAS_STYLE = {
 }
 
 const UPGRADES = [
-  { label: 'Rapid Fire',    desc: 'Shoot interval -100ms', apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 100) } },
-  { label: 'Swift Bullets', desc: 'Bullet speed +3',       apply: s     => { s.bulletSpeed += 3 } },
-  { label: 'Big Shot',      desc: 'Bullet radius +4',      apply: s     => { s.bulletR += 4 } },
-  { label: 'Wide Guard',    desc: 'Player radius +8',      apply: (s,p) => { p.r += 8 } },
-  { label: 'Double Shot',   desc: 'Fire 2 bullets',        apply: s     => { s.multiShot = true } },
+  { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -100ms', apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 100) } },
+  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +3',       apply: s     => { s.bulletSpeed += 3 } },
+  { icon: 'bigshot', label: 'Big Shot',      desc: 'Bullet radius +4',      apply: s     => { s.bulletR += 4 } },
+  { icon: 'guard',   label: 'Wide Guard',    desc: 'Player radius +8',      apply: (s,p) => { p.r += 8 } },
+  { icon: 'double',  label: 'Double Shot',   desc: 'Fire 2 bullets',        apply: s     => { s.multiShot = true } },
 ]
 
 function collides(a, b) {
@@ -37,7 +37,52 @@ function pickCards() {
   return [...UPGRADES].sort(() => Math.random() - 0.5).slice(0, 3)
 }
 
-const mono = { fontFamily: 'monospace' }
+const mono    = { fontFamily: 'monospace' }
+const overlay = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
+
+function GameIcon({ name, size = 44 }) {
+  const g = { stroke: '#b388ff', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
+  const v = `0 0 ${size} ${size}`
+  const h = size / 2, q = size / 4, t = size * 3 / 4
+
+  if (name === 'rapid') // Three upward chevrons (speed)
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <polyline points={`${q},${t} ${h},${h+4} ${t},${t}`}/>
+      <polyline points={`${q},${h+4} ${h},${h-6} ${t},${h+4}`}/>
+      <polyline points={`${q},${q+2} ${h},${q-8} ${t},${q+2}`}/>
+    </g></svg>
+
+  if (name === 'swift') // Bullet shape + speed lines
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h-6} r={7}/>
+      <line x1={h} y1={h+1} x2={h} y2={t+2}/>
+      <line x1={q-2} y1={h+4} x2={q+5} y2={h+4}/>
+      <line x1={q-2} y1={h+10} x2={q+5} y2={h+10}/>
+    </g></svg>
+
+  if (name === 'bigshot') // Large outer ring + filled center dot
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h} r={size*0.38}/>
+      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+    </g></svg>
+
+  if (name === 'guard') // Concentric expanding circles
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h} r={7}/>
+      <circle cx={h} cy={h} r={13} strokeOpacity={0.6}/>
+      <circle cx={h} cy={h} r={size*0.42} strokeOpacity={0.3}/>
+    </g></svg>
+
+  if (name === 'double') // Two parallel bullets
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h-9} cy={h-6} r={5}/>
+      <line x1={h-9} y1={h-1} x2={h-9} y2={t+2}/>
+      <circle cx={h+9} cy={h-6} r={5}/>
+      <line x1={h+9} y1={h-1} x2={h+9} y2={t+2}/>
+    </g></svg>
+
+  return null
+}
 
 function drawCircle(ctx, x, y, r, color, blur) {
   ctx.beginPath()
@@ -48,6 +93,7 @@ function drawCircle(ctx, x, y, r, color, blur) {
 }
 
 export default function App() {
+  const [started,  setStarted]  = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [cards,    setCards]    = useState([])
   const [score,    setScore]    = useState(0)
@@ -99,7 +145,7 @@ export default function App() {
 
   // Spawn enemies
   useEffect(() => {
-    if (gameOver || paused) return
+    if (!started || gameOver || paused) return
     const id = setInterval(() => {
       const rand   = Math.random()
       const fast   = rand < 0.25
@@ -114,11 +160,11 @@ export default function App() {
       })
     }, SPAWN_INTERVAL)
     return () => clearInterval(id)
-  }, [gameOver, paused])
+  }, [started, gameOver, paused])
 
   // Game loop
   useEffect(() => {
-    if (gameOver || paused) return
+    if (!started || gameOver || paused) return
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
@@ -162,22 +208,6 @@ export default function App() {
       })
       enemiesRef.current = enemiesRef.current.filter((_, i) => !hitEnemies.has(i))
       bulletsRef.current = bulletsRef.current.filter((_, i) => !hitBullets.has(i))
-
-      // XP
-      if (kills > 0) {
-        const x = xpRef.current
-        x.current += kills
-        if (x.current >= x.max) {
-          x.current -= x.max
-          x.level += 1
-          x.max = Math.floor(x.max * 1.5)
-          setLevel(x.level)
-          setCards(pickCards())
-          setXp(x.current / x.max)
-          return
-        }
-        setXp(x.current / x.max)
-      }
 
       // Draw & cull effects in one pass
       const liveEffects = []
@@ -230,6 +260,22 @@ export default function App() {
       // Draw player
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 18)
 
+      // XP — checked after drawing so the freeze frame shows all entities
+      if (kills > 0) {
+        const x = xpRef.current
+        x.current += kills
+        if (x.current >= x.max) {
+          x.current -= x.max
+          x.level += 1
+          x.max = Math.floor(x.max * 1.5)
+          setLevel(x.level)
+          setCards(pickCards())
+          setXp(x.current / x.max)
+          return
+        }
+        setXp(x.current / x.max)
+      }
+
       scoreRef.current += 1
       if (scoreRef.current % 60 === 0) setScore(s => s + 1)
 
@@ -238,7 +284,7 @@ export default function App() {
 
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [gameOver, paused])
+  }, [started, gameOver, paused])
 
   const selectCard = (upgrade) => {
     upgrade.apply(statsRef.current, playerRef.current)
@@ -274,27 +320,48 @@ export default function App() {
           </div>
         </div>
 
+        {/* Start screen */}
+        {!started && (
+          <div style={{ ...overlay, background: '#0a0a0f', gap: 32 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <div style={{ ...mono, color: '#00e5ff', fontSize: 36, letterSpacing: 6, textShadow: '0 0 20px #00e5ff' }}>VOID</div>
+              <div style={{ ...mono, color: '#b388ff', fontSize: 13, letterSpacing: 3, textShadow: '0 0 10px #b388ff' }}>SURVIVOR</div>
+            </div>
+            <button onClick={() => setStarted(true)} style={{
+              background: 'transparent', border: '1px solid #00e5ff',
+              color: '#00e5ff', ...mono, fontSize: 16, letterSpacing: 4,
+              padding: '14px 40px', borderRadius: 6, cursor: 'pointer',
+              textShadow: '0 0 10px #00e5ff', boxShadow: '0 0 16px rgba(0,229,255,0.2)',
+              WebkitTapHighlightColor: 'transparent',
+            }}>START</button>
+          </div>
+        )}
+
         {/* Level-up overlay */}
         {cards.length > 0 && (
-          <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.82)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 }}>
-            <div style={{ ...mono, color: '#b388ff', fontSize: 24, marginBottom: 4 }}>LEVEL UP</div>
-            {cards.map((c) => (
-              <button key={c.label} onClick={() => selectCard(c)} style={{
-                width: '100%', maxWidth: 300, padding: '18px 20px',
-                background: '#0d0d1a', border: '1px solid #b388ff',
-                borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-                WebkitTapHighlightColor: 'transparent',
-              }}>
-                <div style={{ ...mono, color: '#b388ff', fontSize: 16, marginBottom: 4 }}>{c.label}</div>
-                <div style={{ ...mono, color: '#666', fontSize: 13 }}>{c.desc}</div>
-              </button>
-            ))}
+          <div style={{ ...overlay, background: 'rgba(10,10,15,0.72)', gap: 16, padding: '0 12px' }}>
+            <div style={{ ...mono, color: '#b388ff', fontSize: 22, letterSpacing: 4, textShadow: '0 0 12px #b388ff' }}>LEVEL UP</div>
+            <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+              {cards.map((c) => (
+                <button key={c.label} onClick={() => selectCard(c)} style={{
+                  flex: 1, padding: '28px 8px 24px',
+                  background: '#0d0d1a', border: '1px solid #b388ff',
+                  borderRadius: 12, cursor: 'pointer', textAlign: 'center',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                  <GameIcon name={c.icon}/>
+                  <div style={{ ...mono, color: '#b388ff', fontSize: 12 }}>{c.label}</div>
+                  <div style={{ ...mono, color: '#555', fontSize: 11, lineHeight: 1.5 }}>{c.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Game over overlay */}
         {gameOver && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+          <div style={{ ...overlay, gap: 14 }}>
             <div style={{ ...mono, color: '#ff2d55', fontSize: 38 }}>GAME OVER</div>
             <div style={{ ...mono, color: '#888', fontSize: 16 }}>Score: {score}</div>
             <button onClick={restart} style={{
