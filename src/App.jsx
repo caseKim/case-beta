@@ -64,10 +64,10 @@ function pickCards(stats, player) {
       if (u.icon === 'rapid' && stats.shootInterval <= 100) return false
       if (u.icon === 'shield' && player.shieldActive) return false
       if ((u.icon === 'shieldrange' || u.icon === 'shieldpower') && !player.shieldActive) return false
-      if (u.icon === 'wingL'   && player.leftWing) return false
-      if (u.icon === 'wingR'   && player.rightWing) return false
-      if (u.icon === 'wingLup' && (!player.leftWing  || player.leftWingLevel  >= 2)) return false
-      if (u.icon === 'wingRup' && (!player.rightWing || player.rightWingLevel >= 2)) return false
+      if (u.icon === 'wingR'   && player.leftWing) return false
+      if (u.icon === 'wingL'   && player.rightWing) return false
+      if (u.icon === 'wingRup' && (!player.leftWing  || player.leftWingLevel  >= 2)) return false
+      if (u.icon === 'wingLup' && (!player.rightWing || player.rightWingLevel >= 2)) return false
       return true
     })
     .sort(() => Math.random() - 0.5)
