@@ -11,6 +11,10 @@ const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
+const LASER_W           = 4    // laser beam collision half-width
+const WING_MISSILE_R    = 6
+const WING_MISSILE_SPD  = 5
+const WING_MISSILE_INT  = 3000  // ms between wing missile shots
 const SPAWN_INTERVAL    = 1300
 const SHOOTER_R         = 12
 const SHOOTER_SPEED     = 1.2
@@ -38,10 +42,10 @@ const UPGRADES = [
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
-  { icon: 'wingR',   label: 'Left Wing',    desc: 'Add left companion',    apply: (s,p) => { p.leftWing = true;  p.leftWingLevel  = 1 } },
-  { icon: 'wingL',   label: 'Right Wing',   desc: 'Add right companion',   apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1 } },
-  { icon: 'wingRup', label: 'Left Wing+',   desc: 'Left wing spread shot', apply: (s,p) => { p.leftWingLevel  = 2 } },
-  { icon: 'wingLup', label: 'Right Wing+',  desc: 'Right wing spread shot',apply: (s,p) => { p.rightWingLevel = 2 } },
+  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 1.0 } },
+  { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0 } },
+  { icon: 'wingRup', label: 'Left Wing+',   desc: 'Laser power +0.2/s',    apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
+  { icon: 'wingLup', label: 'Right Wing+',  desc: 'Missile power +1',      apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
 ]
 
 function pushHitEffect(effects, x, y) {
@@ -196,7 +200,7 @@ export default function App() {
   const bulletsRef      = useRef([])
   const effectsRef      = useRef([])
   const enemyBulletsRef = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0 })
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const gameOverRef = useRef(false)
@@ -310,12 +314,13 @@ export default function App() {
 
       const stats = statsRef.current
       const p     = playerRef.current
+      const wingY = p.y + p.r - WING_R  // wing center y, used throughout frame
 
       // Smooth player movement (lerp toward touch/mouse target)
       const dx = targetXRef.current - p.x
       if (Math.abs(dx) > 0.1) p.x += dx * 0.25
 
-      // Shoot
+      // Player shoot
       if (ts - lastShotRef.current >= stats.shootInterval) {
         const n = stats.shotCount
         for (let i = 0; i < n; i++) {
@@ -326,30 +331,43 @@ export default function App() {
             vy: -Math.cos(angle) * stats.bulletSpeed,
           })
         }
-        // Wing shots — fire from top of wing
-        const wingY = p.y + p.r - WING_R  // wing center y (bottom-aligned to player)
-        if (p.leftWing) {
-          const wx = p.x - WING_OFFSET, wy = wingY - WING_R
-          bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR, vx: 0, vy: -stats.bulletSpeed })
-          if (p.leftWingLevel >= 2)
-            bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR,
-              vx: -SHOT_SPREAD_SX * stats.bulletSpeed,
-              vy: -SHOT_SPREAD_CX * stats.bulletSpeed })
-        }
-        if (p.rightWing) {
-          const wx = p.x + WING_OFFSET, wy = wingY - WING_R
-          bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR, vx: 0, vy: -stats.bulletSpeed })
-          if (p.rightWingLevel >= 2)
-            bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR,
-              vx: SHOT_SPREAD_SX * stats.bulletSpeed,
-              vy: -SHOT_SPREAD_CX * stats.bulletSpeed })
-        }
         lastShotRef.current = ts
       }
 
-      // Move bullets
+      // Right wing — fire homing missile toward nearest enemy
+      if (p.rightWing && ts - p.rightWingLastShot >= WING_MISSILE_INT) {
+        const wMx = p.x + WING_OFFSET
+        const nearest = enemiesRef.current.reduce((best, e) => {
+          const d = Math.hypot(e.x - wMx, e.y - wingY)
+          return (!best || d < best.d) ? { e, d } : best
+        }, null)
+        if (nearest) {
+          const ddx = nearest.e.x - wMx, ddy = nearest.e.y - wingY
+          const dist = Math.hypot(ddx, ddy) || 1
+          bulletsRef.current.push({
+            x: wMx, y: wingY, r: WING_MISSILE_R,
+            vx: (ddx / dist) * WING_MISSILE_SPD,
+            vy: (ddy / dist) * WING_MISSILE_SPD,
+            power: p.rightWingPower, homingTarget: nearest.e,
+          })
+          p.rightWingLastShot = ts
+        }
+      }
+
+      // Move bullets (homing missiles track their target)
       bulletsRef.current = bulletsRef.current.filter(b => b.y > -b.r && b.x > -b.r && b.x < GAME_W + b.r)
-      for (const b of bulletsRef.current) { b.x += b.vx; b.y += b.vy }
+      for (const b of bulletsRef.current) {
+        if (b.homingTarget) {
+          const t = enemiesRef.current.includes(b.homingTarget) ? b.homingTarget : enemiesRef.current[0]
+          if (t) {
+            const ddx = t.x - b.x, ddy = t.y - b.y
+            const dist = Math.hypot(ddx, ddy) || 1
+            b.vx = (ddx / dist) * WING_MISSILE_SPD
+            b.vy = (ddy / dist) * WING_MISSILE_SPD
+          }
+        }
+        b.x += b.vx; b.y += b.vy
+      }
 
       // Bullet-enemy collisions (HP-aware)
       const hitEnemies = new Set()
@@ -361,7 +379,7 @@ export default function App() {
           if (hitBullets.has(bi)) continue
           if (collides(e, bulletsRef.current[bi])) {
             hitBullets.add(bi)
-            e.hp -= stats.bulletPower
+            e.hp -= bulletsRef.current[bi].power ?? stats.bulletPower
             if (e.hp <= 0) { hitEnemies.add(ei); break }
             // hit but not dead — flash effect
             pushHitEffect(effectsRef.current, e.x, e.y)
@@ -381,6 +399,20 @@ export default function App() {
           e.hp -= p.shieldPower
           if (e.hp <= 0) hitEnemies.add(ei)
           else pushHitEffect(effectsRef.current, e.x, e.y)
+        }
+      }
+
+      // Laser — left wing continuous beam damage
+      if (p.leftWing) {
+        const lx = p.x - WING_OFFSET
+        const dmg = p.laserDps / 60
+        for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+          if (hitEnemies.has(ei)) continue
+          const e = enemiesRef.current[ei]
+          if (Math.abs(e.x - lx) < e.r + LASER_W / 2) {
+            e.hp -= dmg
+            if (e.hp <= 0) hitEnemies.add(ei)
+          }
         }
       }
 
@@ -423,9 +455,9 @@ export default function App() {
       }
       effectsRef.current = liveEffects
 
-      // Draw bullets
+      // Draw bullets (homing missiles in orange, regular in yellow)
       for (const b of bulletsRef.current)
-        drawCircle(ctx, b.x, b.y, b.r, '#ffe600', 10)
+        drawCircle(ctx, b.x, b.y, b.r, b.homingTarget ? '#ff9f0a' : '#ffe600', b.homingTarget ? 14 : 10)
 
       // Move & draw enemies
       enemiesRef.current = enemiesRef.current.filter(e =>
@@ -474,11 +506,22 @@ export default function App() {
         drawCircle(ctx, m.x, m.y, m.r, SHOOTER_COLOR, 14)
       }
 
+      // Draw laser beam — left wing
+      if (p.leftWing) {
+        const lx = p.x - WING_OFFSET
+        ctx.beginPath()
+        ctx.moveTo(lx, wingY - WING_R)
+        ctx.lineTo(lx, 0)
+        ctx.strokeStyle = ctx.shadowColor = '#ff6060'
+        ctx.shadowBlur = 16; ctx.lineWidth = 3
+        ctx.stroke()
+        ctx.shadowBlur = 0
+      }
+
       // Draw player
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
 
       // Draw companion wings — bottom-aligned to player
-      const wingY = p.y + p.r - WING_R
       if (p.leftWing)  drawCircle(ctx, p.x - WING_OFFSET, wingY, WING_R, '#ff6060', 10)
       if (p.rightWing) drawCircle(ctx, p.x + WING_OFFSET, wingY, WING_R, '#ff6060', 10)
 
@@ -536,7 +579,7 @@ export default function App() {
     stageRef.current           = 1
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0 }
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
     setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
