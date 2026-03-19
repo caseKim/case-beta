@@ -171,6 +171,7 @@ function drawCircle(ctx, x, y, r, color, blur) {
   ctx.fillStyle = ctx.shadowColor = color
   ctx.shadowBlur = blur
   ctx.fill()
+  ctx.shadowBlur = 0
 }
 
 export default function App() {
@@ -253,6 +254,7 @@ export default function App() {
         r:     fast ? ENEMY_R - 4 : ENEMY_R,
         speed: (fast ? FAST_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
         color: homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
+        font:  `${Math.round((fast ? ENEMY_R - 4 : ENEMY_R) * 0.9)}px monospace`,
         homing,
         hp: maxHp, maxHp,
       }
@@ -420,7 +422,6 @@ export default function App() {
         e.y < GAME_H + ENEMY_R && e.y > -ENEMY_R * 2 &&
         e.x > -ENEMY_R * 2   && e.x < GAME_W + ENEMY_R * 2
       )
-      ctx.shadowBlur = 0
       ctx.fillStyle = '#fff'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -435,8 +436,8 @@ export default function App() {
         }
         if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
         drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
-        ctx.shadowBlur = 0
-        ctx.font = `${Math.round(e.r * 0.9)}px monospace`
+        ctx.fillStyle = '#fff'
+        ctx.font = e.font
         ctx.fillText(e.hp, e.x, e.y)
       }
       ctx.textBaseline = 'alphabetic'
