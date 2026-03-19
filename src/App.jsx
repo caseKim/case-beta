@@ -518,7 +518,7 @@ export default function App() {
         ctx.moveTo(lwx, lwy)
         ctx.lineTo(tx, ty)
         ctx.strokeStyle = ctx.shadowColor = '#ff6060'
-        ctx.shadowBlur = 8; ctx.lineWidth = 1
+        ctx.shadowBlur = 8; ctx.lineWidth = 2
         ctx.stroke()
         ctx.shadowBlur = 0
       }
