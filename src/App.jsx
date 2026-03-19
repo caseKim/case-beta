@@ -255,7 +255,7 @@ export default function App() {
       const shooter = !fast && rand >= 0.90
       const homing  = !fast && !shooter && rand >= 0.85
       const speedScale = 1 + (s - 1) * 0.025
-      const maxHp = 1 + Math.floor(s / 5)   // stage 1-4: 1hp, 5-9: 2hp, 10-14: 3hp …
+      const maxHp = 1 + Math.floor(s / 4)   // stage 1-3: 1hp, 4-7: 2hp, 8-11: 3hp …
       const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : ENEMY_R
       return {
         x:      ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
@@ -501,7 +501,7 @@ export default function App() {
         if (x.current >= x.max) {
           x.current -= x.max
           x.level += 1
-          x.max = Math.floor(x.max * 1.5)
+          x.max = Math.floor(x.max * 1.3)
           setLevel(x.level)
           setCards(pickCards(stats, p))
           setXp(x.current / x.max)
