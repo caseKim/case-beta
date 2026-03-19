@@ -285,12 +285,13 @@ export default function App() {
     }
     scheduleTrickle()
 
-    // Wave burst every 10s → advance stage
+    // Wave burst every 12s → advance stage
     const waveId = setInterval(() => {
       const s = stageRef.current + 1
       stageRef.current = s
       showStage(s)
-      const count = 2 + Math.floor((s - 1) / 2)  // stage 2→2, 4→3, 6→4, …
+      effectsRef.current.push({ kind: 'waveFlash', life: 1, decay: 0.035 })
+      const count = 3 + Math.floor((s - 1) / 2)  // stage 2→3, 4→4, 6→5, …
       for (let i = 0; i < count; i++) enemiesRef.current.push(makeEnemy(s))
     }, 12000)
 
@@ -443,6 +444,10 @@ export default function App() {
         } else if (ef.kind === 'particle') {
           const dist = (1 - a) * 28
           drawCircle(ctx, ef.x + Math.cos(ef.angle) * dist, ef.y + Math.sin(ef.angle) * dist, 3, `rgba(255,200,80,${a})`, 6)
+        } else if (ef.kind === 'waveFlash') {
+          ctx.strokeStyle = `rgba(255,160,0,${ef.life * 0.9})`
+          ctx.lineWidth = 28
+          ctx.strokeRect(0, 0, GAME_W, GAME_H)
         } else if (ef.kind === 'hit') {
           drawCircle(ctx, ef.x, ef.y, ef.life * 10, `rgba(255,255,255,${ef.life * 0.4})`, 10)
         } else {
@@ -648,7 +653,8 @@ export default function App() {
         {/* Stage announcement */}
         {stageAnn > 0 && !paused && (
           <div style={{ ...overlay, pointerEvents: 'none' }}>
-            <div style={{ ...mono, color: '#ffe600', fontSize: 22, letterSpacing: 6, textShadow: '0 0 12px #ffe600' }}>
+            <style>{`@keyframes stageIn{0%{transform:scale(2.5);opacity:0}15%{transform:scale(1);opacity:1}65%{opacity:1}100%{opacity:0}}`}</style>
+            <div key={stageAnn} style={{ ...mono, color: '#ffe600', fontSize: 52, letterSpacing: 8, textShadow: '0 0 24px #ffe600, 0 0 60px rgba(255,230,0,0.4)', animation: 'stageIn 2.2s ease-out forwards' }}>
               STAGE {stageAnn}
             </div>
           </div>
