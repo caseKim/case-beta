@@ -10,7 +10,8 @@ const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
 const SPAWN_INTERVAL = 1200
-const DEFAULT_STATS  = { bulletSpeed: 6, bulletR: 3, shootInterval: 400, multiShot: false }
+const DEFAULT_STATS  = { bulletSpeed: 4, bulletR: 3, bulletPower: 1, shootInterval: 800, shotCount: 1 }
+const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 
 // CSS: scale canvas container to fit viewport, keep 9:16
 const CANVAS_STYLE = {
@@ -20,12 +21,18 @@ const CANVAS_STYLE = {
 }
 
 const UPGRADES = [
-  { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -100ms', apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 100) } },
-  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +3',       apply: s     => { s.bulletSpeed += 3 } },
-  { icon: 'bigshot', label: 'Big Shot',      desc: 'Bullet radius +4',      apply: s     => { s.bulletR += 4 } },
-  { icon: 'guard',   label: 'Wide Guard',    desc: 'Player radius +8',      apply: (s,p) => { p.r += 8 } },
-  { icon: 'double',  label: 'Double Shot',   desc: 'Fire 2 bullets',        apply: s     => { s.multiShot = true } },
+  { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -30ms',  apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 30) } },
+  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +1',       apply: s     => { s.bulletSpeed += 1 } },
+  { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.2',     apply: s     => { s.bulletPower += 0.2 } },
+  { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 10; p.shieldPower = 1 } },
+  { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +5',   apply: (s,p) => { p.shieldR += 5 } },
+  { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
+  { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
 ]
+
+function pushHitEffect(effects, x, y) {
+  effects.push({ kind: 'hit', x, y, life: 1, decay: 0.18 })
+}
 
 function collides(a, b) {
   const dx = a.x - b.x, dy = a.y - b.y
@@ -33,8 +40,16 @@ function collides(a, b) {
   return dx * dx + dy * dy < sr * sr
 }
 
-function pickCards() {
-  return [...UPGRADES].sort(() => Math.random() - 0.5).slice(0, 3)
+function pickCards(stats, player) {
+  return [...UPGRADES]
+    .filter(u => {
+      if (u.icon === 'rapid' && stats.shootInterval <= 120) return false
+      if (u.icon === 'shield' && player.shieldActive) return false
+      if ((u.icon === 'shieldrange' || u.icon === 'shieldpower') && !player.shieldActive) return false
+      return true
+    })
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3)
 }
 
 const mono    = { fontFamily: 'monospace' }
@@ -60,25 +75,45 @@ function GameIcon({ name, size = 44 }) {
       <line x1={q-2} y1={h+10} x2={q+5} y2={h+10}/>
     </g></svg>
 
-  if (name === 'bigshot') // Large outer ring + filled center dot
+  if (name === 'power') // Upward arrow inside circle (power up)
     return <svg width={size} height={size} viewBox={v}><g {...g}>
       <circle cx={h} cy={h} r={size*0.38}/>
+      <polyline points={`${h-8},${h+6} ${h},${h-8} ${h+8},${h+6}`}/>
+      <line x1={h} y1={h-8} x2={h} y2={h+10}/>
+    </g></svg>
+
+  if (name === 'shield') // Outer ring (shield) + inner dot (player)
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h} r={size*0.38}/>
+      <circle cx={h} cy={h} r={6} fill='#b388ff'/>
+    </g></svg>
+
+  if (name === 'shieldrange') // Expanding rings outward
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
       <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={12} strokeOpacity={0.7}/>
+      <circle cx={h} cy={h} r={size*0.38} strokeOpacity={0.4}/>
+      <line x1={h} y1={q-2} x2={h} y2={q-8}/>
+      <line x1={t+2} y1={h} x2={t+8} y2={h}/>
+      <line x1={h} y1={t+2} x2={h} y2={t+8}/>
+      <line x1={q-2} y1={h} x2={q-8} y2={h}/>
     </g></svg>
 
-  if (name === 'guard') // Concentric expanding circles
+  if (name === 'shieldpower') // Ring with cross (power marks)
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h} cy={h} r={7}/>
-      <circle cx={h} cy={h} r={13} strokeOpacity={0.6}/>
-      <circle cx={h} cy={h} r={size*0.42} strokeOpacity={0.3}/>
+      <circle cx={h} cy={h} r={size*0.38}/>
+      <line x1={h} y1={h-10} x2={h} y2={h+10}/>
+      <line x1={h-10} y1={h} x2={h+10} y2={h}/>
     </g></svg>
 
-  if (name === 'double') // Two parallel bullets
+  if (name === 'addshot') // Three spread bullets diverging upward from center
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h-9} cy={h-6} r={5}/>
-      <line x1={h-9} y1={h-1} x2={h-9} y2={t+2}/>
-      <circle cx={h+9} cy={h-6} r={5}/>
-      <line x1={h+9} y1={h-1} x2={h+9} y2={t+2}/>
+      <circle cx={h} cy={q} r={5}/>
+      <line x1={h} y1={q+5} x2={h} y2={t}/>
+      <circle cx={h-12} cy={q+6} r={4}/>
+      <line x1={h-12} y1={q+10} x2={h} y2={t}/>
+      <circle cx={h+12} cy={q+6} r={4}/>
+      <line x1={h+12} y1={q+10} x2={h} y2={t}/>
     </g></svg>
 
   return null
@@ -93,12 +128,13 @@ function drawCircle(ctx, x, y, r, color, blur) {
 }
 
 export default function App() {
-  const [started,  setStarted]  = useState(false)
-  const [gameOver, setGameOver] = useState(false)
-  const [cards,    setCards]    = useState([])
-  const [score,    setScore]    = useState(0)
-  const [xp,       setXp]       = useState(0)
-  const [level,    setLevel]    = useState(1)
+  const [started,   setStarted]  = useState(false)
+  const [gameOver,  setGameOver] = useState(false)
+  const [cards,     setCards]    = useState([])
+  const [score,     setScore]    = useState(0)
+  const [xp,        setXp]       = useState(0)
+  const [level,     setLevel]    = useState(1)
+  const [stageAnn,  setStageAnn] = useState(0)  // 0 = hidden
 
   const paused = cards.length > 0
 
@@ -106,7 +142,7 @@ export default function App() {
   const enemiesRef  = useRef([])
   const bulletsRef  = useRef([])
   const effectsRef  = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R })
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const gameOverRef = useRef(false)
@@ -114,6 +150,14 @@ export default function App() {
   const statsRef    = useRef({ ...DEFAULT_STATS })
   const lastShotRef = useRef(0)
   const rectRef     = useRef(null)  // cached canvas bounding rect
+  const stageRef        = useRef(1)   // current stage (1 = start, +1 every 10s wave)
+  const stageAnnTimer   = useRef(null)
+
+  const showStage = (n) => {
+    if (stageAnnTimer.current) clearTimeout(stageAnnTimer.current)
+    setStageAnn(n)
+    stageAnnTimer.current = setTimeout(() => setStageAnn(0), 2200)
+  }
 
   // Set canvas logical size once
   useEffect(() => {
@@ -146,21 +190,45 @@ export default function App() {
   // Spawn enemies
   useEffect(() => {
     if (!started || gameOver || paused) return
-    const id = setInterval(() => {
-      const rand   = Math.random()
-      const fast   = rand < 0.25
+
+    const makeEnemy = (s) => {
+      const rand  = Math.random()
+      const fast  = rand < 0.25
       const homing = rand >= 0.85
-      enemiesRef.current.push({
+      const speedScale = 1 + (s - 1) * 0.03
+      const maxHp = 1 + Math.floor(s / 3)   // stage 1-2: 1hp, 3-5: 2hp, 6-8: 3hp …
+      return {
         x:     ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
         y:     -ENEMY_R,
         r:     fast ? ENEMY_R - 4 : ENEMY_R,
-        speed: fast ? FAST_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED,
+        speed: (fast ? FAST_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
         color: homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
         homing,
-      })
+        hp: maxHp, maxHp,
+      }
+    }
+
+    // Regular trickle
+    const id = setInterval(() => {
+      enemiesRef.current.push(makeEnemy(stageRef.current))
     }, SPAWN_INTERVAL)
-    return () => clearInterval(id)
+
+    // Wave burst every 10s → advance stage
+    const waveId = setInterval(() => {
+      const s = stageRef.current + 1
+      stageRef.current = s
+      showStage(s)
+      const count = 3 + (s - 1) * 2   // stage 2 → 5, stage 3 → 7, …
+      for (let i = 0; i < count; i++) enemiesRef.current.push(makeEnemy(s))
+    }, 10000)
+
+    return () => { clearInterval(id); clearInterval(waveId) }
   }, [started, gameOver, paused])
+
+  // Announce stage 1 on game start (only once, not on every resume)
+  useEffect(() => {
+    if (started && !gameOver) showStage(1)
+  }, [started])
 
   // Game loop
   useEffect(() => {
@@ -177,26 +245,54 @@ export default function App() {
 
       // Shoot
       if (ts - lastShotRef.current >= stats.shootInterval) {
-        bulletsRef.current.push({ x: p.x, y: p.y - p.r, r: stats.bulletR })
-        if (stats.multiShot) {
-          bulletsRef.current.push({ x: p.x - 14, y: p.y - p.r, r: stats.bulletR })
-          bulletsRef.current.push({ x: p.x + 14, y: p.y - p.r, r: stats.bulletR })
+        const n = stats.shotCount
+        for (let i = 0; i < n; i++) {
+          const angle = (i - (n - 1) / 2) * SHOT_SPREAD
+          bulletsRef.current.push({
+            x: p.x, y: p.y - p.r, r: stats.bulletR,
+            vx: Math.sin(angle) * stats.bulletSpeed,
+            vy: -Math.cos(angle) * stats.bulletSpeed,
+          })
         }
         lastShotRef.current = ts
       }
 
       // Move bullets
-      bulletsRef.current = bulletsRef.current.filter(b => b.y > -b.r)
-      for (const b of bulletsRef.current) b.y -= stats.bulletSpeed
+      bulletsRef.current = bulletsRef.current.filter(b => b.y > -b.r && b.x > -b.r && b.x < GAME_W + b.r)
+      for (const b of bulletsRef.current) { b.x += b.vx; b.y += b.vy }
 
-      // Bullet-enemy collisions
+      // Bullet-enemy collisions (HP-aware)
       const hitEnemies = new Set()
       const hitBullets = new Set()
-      for (let ei = 0; ei < enemiesRef.current.length; ei++)
-        for (let bi = 0; bi < bulletsRef.current.length; bi++)
-          if (collides(enemiesRef.current[ei], bulletsRef.current[bi])) {
-            hitEnemies.add(ei); hitBullets.add(bi)
+      for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+        if (hitEnemies.has(ei)) continue
+        const e = enemiesRef.current[ei]
+        for (let bi = 0; bi < bulletsRef.current.length; bi++) {
+          if (hitBullets.has(bi)) continue
+          if (collides(e, bulletsRef.current[bi])) {
+            hitBullets.add(bi)
+            e.hp -= stats.bulletPower
+            if (e.hp <= 0) { hitEnemies.add(ei); break }
+            // hit but not dead — flash effect
+            pushHitEffect(effectsRef.current, e.x, e.y)
           }
+        }
+      }
+
+      // Shield-enemy collisions
+      if (p.shieldActive) {
+        const shield = { x: p.x, y: p.y, r: p.shieldR }
+        for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+          if (hitEnemies.has(ei)) continue
+          const e = enemiesRef.current[ei]
+          if (!collides(e, shield)) continue
+          if (ts - (e.shieldHitAt || 0) < 600) continue
+          e.shieldHitAt = ts
+          e.hp -= p.shieldPower
+          if (e.hp <= 0) hitEnemies.add(ei)
+          else effectsRef.current.push({ kind: 'hit', x: e.x, y: e.y, life: 1, decay: 0.18 })
+        }
+      }
 
       const kills = hitEnemies.size
       enemiesRef.current.forEach((e, i) => {
@@ -222,6 +318,8 @@ export default function App() {
         } else if (ef.kind === 'particle') {
           const dist = (1 - a) * 28
           drawCircle(ctx, ef.x + Math.cos(ef.angle) * dist, ef.y + Math.sin(ef.angle) * dist, 3, `rgba(255,200,80,${a})`, 6)
+        } else if (ef.kind === 'hit') {
+          drawCircle(ctx, ef.x, ef.y, ef.life * 10, `rgba(255,255,255,${ef.life * 0.4})`, 10)
         } else {
           ctx.globalAlpha = a
           ctx.fillStyle   = '#ffe600'
@@ -230,7 +328,7 @@ export default function App() {
           ctx.fillText('+1', ef.x, ef.y - (1 - a) * 32)
           ctx.globalAlpha = 1
         }
-        ef.life -= 0.055
+        ef.life -= ef.decay ?? 0.055
         if (ef.life > 0) liveEffects.push(ef)
       }
       effectsRef.current = liveEffects
@@ -254,11 +352,30 @@ export default function App() {
           e.y += e.speed
         }
         if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
-        drawCircle(ctx, e.x, e.y, e.r, e.color, 14)
+        drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
+        ctx.shadowBlur = 0
+        ctx.fillStyle = '#fff'
+        ctx.font = `${Math.round(e.r * 0.9)}px monospace`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(e.hp, e.x, e.y)
+        ctx.textBaseline = 'alphabetic'
       }
 
       // Draw player
-      drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 18)
+      drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
+
+      // Draw shield
+      if (p.shieldActive) {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.shieldR, 0, Math.PI * 2)
+        ctx.strokeStyle = 'rgba(0,229,255,0.5)'
+        ctx.shadowColor = '#00e5ff'
+        ctx.shadowBlur  = 14
+        ctx.lineWidth   = 2
+        ctx.stroke()
+        ctx.shadowBlur  = 0
+      }
 
       // XP — checked after drawing so the freeze frame shows all entities
       if (kills > 0) {
@@ -269,7 +386,7 @@ export default function App() {
           x.level += 1
           x.max = Math.floor(x.max * 1.5)
           setLevel(x.level)
-          setCards(pickCards())
+          setCards(pickCards(stats, p))
           setXp(x.current / x.max)
           return
         }
@@ -297,8 +414,10 @@ export default function App() {
     effectsRef.current  = []
     scoreRef.current    = 0
     lastShotRef.current = 0
-    gameOverRef.current = false
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R }
+    gameOverRef.current        = false
+    stageRef.current           = 1
+    setStageAnn(0)
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0 }
     xpRef.current       = { current: 0, level: 1, max: 5 }
     statsRef.current    = { ...DEFAULT_STATS }
     setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
@@ -355,6 +474,15 @@ export default function App() {
                   <div style={{ ...mono, color: '#555', fontSize: 11, lineHeight: 1.5 }}>{c.desc}</div>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stage announcement */}
+        {stageAnn > 0 && (
+          <div style={{ ...overlay, pointerEvents: 'none' }}>
+            <div style={{ ...mono, color: '#ffe600', fontSize: 22, letterSpacing: 6, textShadow: '0 0 12px #ffe600' }}>
+              STAGE {stageAnn}
             </div>
           </div>
         )}
