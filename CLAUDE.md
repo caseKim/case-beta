@@ -21,7 +21,9 @@ No test runner is configured.
 ## Deploy Workflow
 
 When the user says "배포해줘":
-1. **Spec sync** — `.claude/spec.md`와 `src/App.jsx`를 비교해 차이가 있으면 코드에 먼저 반영
+1. **Spec sync (양방향)** — `.claude/spec.md`와 `src/App.jsx`를 비교:
+   - spec.md에만 있는 변경 → 코드에 반영
+   - 코드에만 있는 변경 → spec.md에 반영 (코드가 정답)
 2. `/simplify` — code review and cleanup
 3. Test & review — run `npm run build`, check for issues
 4. Apply review findings
