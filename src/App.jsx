@@ -26,6 +26,11 @@ const SHOOTER_COLOR     = '#30d158'  // neon green
 const MISSILE_R         = 5
 const MISSILE_SPEED     = 4
 const MISSILE_INTERVAL  = 2500       // ms between shots
+const CANNON_INTERVAL    = 1800   // ms between cannon shots
+const CANNON_SPEED       = 4      // px/frame toward target
+const CANNON_BASE_POWER  = 5
+const CANNON_BASE_RADIUS = 65
+const CANNON_FIXED_RANGE = 280  // px ahead (upward) where the shell explodes
 const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
@@ -40,7 +45,6 @@ const CANVAS_STYLE = {
 
 const UPGRADES = [
   { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -50ms',  apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 50) } },
-  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +2',       apply: s     => { s.bulletSpeed += 2 } },
   { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.5',     apply: s     => { s.bulletPower += 0.5 } },
   { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 14; p.shieldPower = 1 } },
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
@@ -49,7 +53,10 @@ const UPGRADES = [
   { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4 } },
   { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0 } },
   { icon: 'wingRup', label: 'Left Wing+',   desc: 'Laser power +0.2/s',    apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
-  { icon: 'wingLup', label: 'Right Wing+',  desc: 'Missile power +1',      apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
+  { icon: 'wingLup',     label: 'Right Wing+',  desc: 'Missile power +1',         apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
+  { icon: 'cannon',      label: 'Cannon',       desc: 'AoE mortar (pow 5, r 65)', apply: (s,p) => { p.cannonActive = true; p.cannonPower = CANNON_BASE_POWER; p.cannonRadius = CANNON_BASE_RADIUS; p.cannonLastShot = 0 } },
+  { icon: 'cannonpower', label: 'Cannon Power+', desc: 'Cannon damage +2',         apply: (s,p) => { p.cannonPower += 2 } },
+  { icon: 'cannonrange', label: 'Cannon Range+', desc: 'Blast radius +15',         apply: (s,p) => { p.cannonRadius += 15 } },
 ]
 
 function pushHitEffect(effects, x, y) {
@@ -72,6 +79,8 @@ function pickCards(stats, player) {
       if (u.icon === 'wingL'   && player.rightWing) return false
       if (u.icon === 'wingRup' && (!player.leftWing  || player.leftWingLevel  >= 2)) return false
       if (u.icon === 'wingLup' && (!player.rightWing || player.rightWingLevel >= 2)) return false
+      if (u.icon === 'cannon'      && player.cannonActive) return false
+      if ((u.icon === 'cannonpower' || u.icon === 'cannonrange') && !player.cannonActive) return false
       return true
     })
     .sort(() => Math.random() - 0.5)
@@ -80,6 +89,7 @@ function pickCards(stats, player) {
 
 const mono    = { fontFamily: 'monospace' }
 const overlay = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
+const RECORD_CSS = `@keyframes recordPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}@keyframes recordGlow{0%,100%{text-shadow:0 0 12px #ffe600}50%{text-shadow:0 0 32px #ffe600,0 0 60px rgba(255,230,0,0.6)}}`
 
 function GameIcon({ name, size = 44 }) {
   const g = { stroke: '#b388ff', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
@@ -91,14 +101,6 @@ function GameIcon({ name, size = 44 }) {
       <polyline points={`${q},${t} ${h},${h+4} ${t},${t}`}/>
       <polyline points={`${q},${h+4} ${h},${h-6} ${t},${h+4}`}/>
       <polyline points={`${q},${q+2} ${h},${q-8} ${t},${q+2}`}/>
-    </g></svg>
-
-  if (name === 'swift') // Bullet shape + speed lines
-    return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h} cy={h-6} r={7}/>
-      <line x1={h} y1={h+1} x2={h} y2={t+2}/>
-      <line x1={q-2} y1={h+4} x2={q+5} y2={h+4}/>
-      <line x1={q-2} y1={h+10} x2={q+5} y2={h+10}/>
     </g></svg>
 
   if (name === 'power') // Upward arrow inside circle (power up)
@@ -176,6 +178,17 @@ function GameIcon({ name, size = 44 }) {
       <circle cx={h-4} cy={h+4} r={4}/>
     </g></svg>
 
+  if (name === 'cannon' || name === 'cannonpower' || name === 'cannonrange') {
+    const arc = `M ${q+4} ${t-2} Q ${h+6} ${q-2} ${t} ${h}`
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={q} cy={t} r={4} fill='#b388ff'/>
+      <path d={arc} fill="none"/>
+      {name === 'cannon' && <><circle cx={t} cy={h} r={5}/><circle cx={t} cy={h} r={11} strokeOpacity={0.55}/></>}
+      {name === 'cannonpower' && <><circle cx={t} cy={h} r={5}/><line x1={t-9} y1={h} x2={t+9} y2={h}/><line x1={t} y1={h-9} x2={t} y2={h+9}/></>}
+      {name === 'cannonrange' && <><circle cx={t} cy={h} r={4}/><circle cx={t} cy={h} r={10} strokeOpacity={0.6}/><circle cx={t} cy={h} r={16} strokeOpacity={0.3}/></>}
+    </g></svg>
+  }
+
   return null
 }
 
@@ -195,8 +208,12 @@ export default function App() {
   const [score,     setScore]    = useState(0)
   const [xp,        setXp]       = useState(0)
   const [level,     setLevel]    = useState(1)
+  const [stage,        setStage]        = useState(1)
   const [stageAnn,     setStageAnn]    = useState(0)      // 0 = hidden
   const [waveWarning,  setWaveWarning] = useState(false)
+  const [highScore,    setHighScore]   = useState(() => parseInt(localStorage.getItem('voidHighScore') || '0'))
+  const [isNewRecord,  setIsNewRecord] = useState(false)
+  const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
 
   const paused = cards.length > 0
 
@@ -205,9 +222,12 @@ export default function App() {
   const bulletsRef      = useRef([])
   const effectsRef      = useRef([])
   const enemyBulletsRef = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0 })
+  const cannonShellsRef = useRef([])
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
+  const timeRef     = useRef(0)
+  const killCountRef = useRef(0)
   const gameOverRef = useRef(false)
   const xpRef       = useRef({ current: 0, level: 1, max: 4 })
   const statsRef    = useRef({ ...DEFAULT_STATS })
@@ -224,6 +244,7 @@ export default function App() {
 
   const showStage = (n) => {
     if (stageAnnTimer.current) clearTimeout(stageAnnTimer.current)
+    setStage(n)
     setStageAnn(n)
     stageAnnTimer.current = setTimeout(() => setStageAnn(0), 2200)
   }
@@ -286,6 +307,7 @@ export default function App() {
       // Stage advances when wave clears
       const s = stageRef.current + 1
       stageRef.current = s
+      scoreRef.current += (s - 1) * 10
       showStage(s)
       stagePhaseRef.current = 'playing'
       advanceStageRef.current = null
@@ -326,10 +348,12 @@ export default function App() {
       timers.wave = setTimeout(startWave, WARNING_DURATION)
     }
 
+    const playDuration = () => STAGE_PLAY_DURATION + (stageRef.current === 1 ? 3000 : 0)
+
     const scheduleWarning = () => {
       stagePhaseRef.current = 'playing'
       phaseStartRef.current = Date.now()
-      timers.wave = setTimeout(startWarning, STAGE_PLAY_DURATION)
+      timers.wave = setTimeout(startWarning, playDuration())
     }
 
     // Phase-aware restart (after level-up pause) — resume with remaining time
@@ -356,7 +380,7 @@ export default function App() {
       timers.wave = setTimeout(startWave, remaining)
     } else {
       const elapsed = phaseStartRef.current > 0 ? Date.now() - phaseStartRef.current : 0
-      const remaining = Math.max(0, STAGE_PLAY_DURATION - elapsed)
+      const remaining = Math.max(0, playDuration() - elapsed)
       phaseStartRef.current = Date.now() - elapsed  // ensure it's set
       timers.wave = setTimeout(startWarning, remaining)
     }
@@ -449,9 +473,51 @@ export default function App() {
         b.x += b.vx; b.y += b.vy
       }
 
+      // Cannon — fire straight ahead to fixed range
+      if (p.cannonActive && ts - p.cannonLastShot >= CANNON_INTERVAL) {
+        cannonShellsRef.current.push({
+          x: p.x, y: p.y - p.r,
+          tx: p.x, ty: p.y - p.r - CANNON_FIXED_RANGE,
+        })
+        p.cannonLastShot = ts
+      }
+
+      // Move cannon shells — collect explosions
+      const cannonExplosions = []
+      cannonShellsRef.current = cannonShellsRef.current.filter(shell => {
+        const sdx = shell.tx - shell.x, sdy = shell.ty - shell.y
+        const sdist = Math.hypot(sdx, sdy)
+        if (sdist <= CANNON_SPEED) {
+          cannonExplosions.push({ x: shell.tx, y: shell.ty })
+          return false
+        }
+        shell.x += (sdx / sdist) * CANNON_SPEED
+        shell.y += (sdy / sdist) * CANNON_SPEED
+        return true
+      })
+
       // Bullet-enemy collisions (HP-aware)
       const hitEnemies = new Set()
       const hitBullets = new Set()
+
+      // Cannon AoE damage
+      for (const exp of cannonExplosions) {
+        effectsRef.current.push({ kind: 'cannonBlast', x: exp.x, y: exp.y, life: 1, decay: 0.04, radius: p.cannonRadius })
+        for (let n = 0; n < 8; n++)
+          effectsRef.current.push({ kind: 'cannonParticle', x: exp.x, y: exp.y, life: 1, angle: (n / 8) * Math.PI * 2 })
+        for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+          if (hitEnemies.has(ei)) continue
+          const e = enemiesRef.current[ei]
+          const ed = Math.hypot(e.x - exp.x, e.y - exp.y)
+          if (ed < p.cannonRadius) {
+            const dmg = ed < p.cannonRadius * 0.4 ? p.cannonPower : p.cannonPower * (1 - ed / p.cannonRadius)
+            e.hp -= dmg
+            if (e.hp <= 0) hitEnemies.add(ei)
+            else pushHitEffect(effectsRef.current, e.x, e.y)
+          }
+        }
+      }
+
       for (let ei = 0; ei < enemiesRef.current.length; ei++) {
         if (hitEnemies.has(ei)) continue
         const e = enemiesRef.current[ei]
@@ -499,6 +565,21 @@ export default function App() {
         }
       }
 
+      // Lingering cannon blast — enemies passing through active effect zone take gradual damage
+      for (const ef of effectsRef.current) {
+        if (ef.kind !== 'cannonBlast' || ef.life <= 0.2) continue
+        const r2 = ef.radius * ef.radius
+        for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+          if (hitEnemies.has(ei)) continue
+          const e = enemiesRef.current[ei]
+          const ddx = e.x - ef.x, ddy = e.y - ef.y
+          if (ddx * ddx + ddy * ddy < r2) {
+            e.hp -= ef.life * 0.04 * p.cannonPower
+            if (e.hp <= 0) hitEnemies.add(ei)
+          }
+        }
+      }
+
       const kills = hitEnemies.size
       enemiesRef.current.forEach((e, i) => {
         if (!hitEnemies.has(i)) return
@@ -533,6 +614,18 @@ export default function App() {
           ctx.strokeRect(0, 0, GAME_W, GAME_H)
         } else if (ef.kind === 'hit') {
           drawCircle(ctx, ef.x, ef.y, ef.life * 10, `rgba(255,255,255,${ef.life * 0.4})`, 10)
+        } else if (ef.kind === 'cannonBlast') {
+          ctx.beginPath()
+          ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2)
+          ctx.strokeStyle = ctx.shadowColor = `rgba(26,111,255,${ef.life})`
+          ctx.shadowBlur = 18; ctx.lineWidth = 3
+          ctx.stroke()
+          ctx.fillStyle = `rgba(26,111,255,${ef.life * 0.12})`
+          ctx.fill()
+          ctx.shadowBlur = 0
+        } else if (ef.kind === 'cannonParticle') {
+          const dist = (1 - ef.life) * 40
+          drawCircle(ctx, ef.x + Math.cos(ef.angle) * dist, ef.y + Math.sin(ef.angle) * dist, 3, `rgba(80,150,255,${ef.life})`, 8)
         } else {
           ctx.globalAlpha = a
           ctx.fillStyle   = '#ffe600'
@@ -549,6 +642,10 @@ export default function App() {
       // Draw bullets (homing missiles in orange, regular in yellow)
       for (const b of bulletsRef.current)
         drawCircle(ctx, b.x, b.y, b.r, b.homingTarget ? '#ff9f0a' : '#ffe600', b.homingTarget ? 14 : 10)
+
+      // Draw cannon shells (green)
+      for (const shell of cannonShellsRef.current)
+        drawCircle(ctx, shell.x, shell.y, 5, '#1a6fff', 14)
 
       // Move & draw enemies
       enemiesRef.current = enemiesRef.current.filter(e =>
@@ -568,7 +665,7 @@ export default function App() {
           e.y += e.speed
         }
         // Shooter fires missiles toward player
-        if (e.shooter && ts - e.lastShot >= MISSILE_INTERVAL) {
+        if (e.shooter && e.y < p.y && ts - e.lastShot >= MISSILE_INTERVAL) {
           e.lastShot = ts
           const dx = p.x - e.x, dy = p.y - e.y
           const dist = Math.hypot(dx, dy) || 1
@@ -614,6 +711,10 @@ export default function App() {
       // Draw player
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
 
+      // Cannon indicator — small green dot at player top-center
+      if (p.cannonActive)
+        drawCircle(ctx, p.x, p.y - p.r - 5, 4, '#1a6fff', 10)
+
       // Draw companion wings — bottom-aligned to player
       if (p.leftWing)  drawCircle(ctx, p.x - WING_OFFSET, wingY, WING_R, '#ff6060', 10)
       if (p.rightWing) drawCircle(ctx, p.x + WING_OFFSET, wingY, WING_R, '#ff6060', 10)
@@ -646,8 +747,15 @@ export default function App() {
         setXp(x.current / x.max)
       }
 
-      scoreRef.current += 1
-      if (scoreRef.current % 60 === 0) setScore(s => s + 1)
+      if (kills > 0) {
+        killCountRef.current += kills
+        scoreRef.current += kills
+      }
+
+      timeRef.current += 1
+      const tickSecond = timeRef.current % 60 === 0
+      if (tickSecond) scoreRef.current += 1
+      if (kills > 0 || tickSecond) setScore(scoreRef.current)
 
       rafRef.current = requestAnimationFrame(loop)
     }
@@ -655,6 +763,19 @@ export default function App() {
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
   }, [started, gameOver, paused])
+
+  useEffect(() => {
+    if (!gameOver) return
+    const secs = Math.floor(timeRef.current / 60)
+    const kills = killCountRef.current
+    setFinalStats({ time: secs, kills })
+    const prev = parseInt(localStorage.getItem('voidHighScore') || '0')
+    if (scoreRef.current > prev) {
+      localStorage.setItem('voidHighScore', String(scoreRef.current))
+      setHighScore(scoreRef.current)
+      setIsNewRecord(true)
+    }
+  }, [gameOver])
 
   const selectCard = (upgrade) => {
     upgrade.apply(statsRef.current, playerRef.current)
@@ -666,7 +787,10 @@ export default function App() {
     bulletsRef.current      = []
     effectsRef.current      = []
     enemyBulletsRef.current = []
+    cannonShellsRef.current = []
     scoreRef.current    = 0
+    timeRef.current     = 0
+    killCountRef.current = 0
     lastShotRef.current = 0
     gameOverRef.current        = false
     stageRef.current           = 1
@@ -678,10 +802,12 @@ export default function App() {
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
     setWaveWarning(false)
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0 }
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
-    setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
+    setIsNewRecord(false)
+    setFinalStats({ time: 0, kills: 0 })
+    setScore(0); setXp(0); setLevel(1); setStage(1); setCards([]); setGameOver(false)
   }
 
   return (
@@ -692,7 +818,8 @@ export default function App() {
         {/* HUD */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '12px 16px', pointerEvents: 'none' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ ...mono, color: '#00e5ff', fontSize: 18 }}>SCORE: {score}</span>
+            <span style={{ ...mono, color: '#00e5ff', fontSize: 14 }}>SCORE {score}</span>
+            <span style={{ ...mono, color: '#ffe600', fontSize: 14 }}>STAGE {stage}</span>
             <span style={{ ...mono, color: '#b388ff', fontSize: 14 }}>LV {level}</span>
           </div>
           <div style={{ height: 5, background: '#1a1a2e', borderRadius: 3 }}>
@@ -759,20 +886,43 @@ export default function App() {
         )}
 
         {/* Game over overlay */}
-        {gameOver && (
-          <div style={{ ...overlay, gap: 14 }}>
-            <div style={{ ...mono, color: '#ff2d55', fontSize: 38 }}>GAME OVER</div>
-            <div style={{ ...mono, color: '#888', fontSize: 16 }}>Score: {score}</div>
-            <button onClick={restart} style={{
-              marginTop: 8, background: '#00e5ff', color: '#0a0a0f',
-              border: 'none', padding: '14px 36px', ...mono,
-              fontSize: 17, cursor: 'pointer', borderRadius: 6,
-              WebkitTapHighlightColor: 'transparent',
-            }}>
-              RESTART
-            </button>
-          </div>
-        )}
+        {gameOver && (() => {
+          const m = String(Math.floor(finalStats.time / 60)).padStart(2, '0')
+          const s = String(finalStats.time % 60).padStart(2, '0')
+          return (
+            <div style={{ ...overlay, gap: 10 }}>
+              <style>{RECORD_CSS}</style>
+              <div style={{ ...mono, color: '#ff2d55', fontSize: 38 }}>GAME OVER</div>
+              {isNewRecord && (
+                <div style={{ ...mono, color: '#ffe600', fontSize: 15, letterSpacing: 4, animation: 'recordPulse 0.8s ease-in-out infinite, recordGlow 0.8s ease-in-out infinite' }}>
+                  NEW RECORD!
+                </div>
+              )}
+              <div style={{ ...mono, color: '#fff', fontSize: 22, marginTop: 4 }}>{score}</div>
+              {!isNewRecord && highScore > 0 && (
+                <div style={{ ...mono, color: '#ffe600', fontSize: 13 }}>BEST {highScore}</div>
+              )}
+              <div style={{ display: 'flex', gap: 24, marginTop: 6 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ ...mono, color: '#555', fontSize: 11, letterSpacing: 2, marginBottom: 3 }}>TIME</div>
+                  <div style={{ ...mono, color: '#aaa', fontSize: 15 }}>{m}:{s}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ ...mono, color: '#555', fontSize: 11, letterSpacing: 2, marginBottom: 3 }}>KILLS</div>
+                  <div style={{ ...mono, color: '#aaa', fontSize: 15 }}>{finalStats.kills}</div>
+                </div>
+              </div>
+              <button onClick={restart} style={{
+                marginTop: 10, background: '#00e5ff', color: '#0a0a0f',
+                border: 'none', padding: '14px 36px', ...mono,
+                fontSize: 17, cursor: 'pointer', borderRadius: 6,
+                WebkitTapHighlightColor: 'transparent',
+              }}>
+                RESTART
+              </button>
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
