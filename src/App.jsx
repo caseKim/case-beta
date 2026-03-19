@@ -217,6 +217,7 @@ export default function App() {
   const stagePhaseRef      = useRef('playing')  // 'playing' | 'warning' | 'wave'
   const advanceStageRef    = useRef(null)       // called from game loop on early wave clear
   const waveAllSpawnedRef  = useRef(false)      // true once all wave enemies are in the field
+  const waveRemainingRef   = useRef(0)          // enemies still to be spawned (survives pause)
   const stageAnnTimer   = useRef(null)
   const targetXRef      = useRef(GAME_W / 2)
 
@@ -301,12 +302,12 @@ export default function App() {
       const s = stageRef.current
       const count = WAVE_BASE_COUNT + Math.floor((s - 1) / 2)
       const spawnMs = Math.floor(3000 / count)
-      let spawned = 0
+      waveRemainingRef.current = count
       const spawnNext = () => {
-        if (spawned < count && stagePhaseRef.current === 'wave') {
+        if (waveRemainingRef.current > 0 && stagePhaseRef.current === 'wave') {
           enemiesRef.current.push({ ...makeEnemy(s), isWave: true })
-          spawned++
-          if (spawned < count) timers.spawn = setTimeout(spawnNext, spawnMs)
+          waveRemainingRef.current--
+          if (waveRemainingRef.current > 0) timers.spawn = setTimeout(spawnNext, spawnMs)
           else waveAllSpawnedRef.current = true
         }
       }
@@ -331,9 +332,21 @@ export default function App() {
     // Phase-aware restart (after level-up pause)
     const phase = stagePhaseRef.current
     if (phase === 'wave') {
-      waveAllSpawnedRef.current = true  // treat as fully spawned on resume
-      timers.wave = setTimeout(() => endWave(), WAVE_MAX_DURATION)
-      advanceStageRef.current = () => { clearTimeout(timers.wave); endWave() }
+      // Resume: continue spawning any remaining wave enemies
+      const s = stageRef.current
+      const spawnMs = Math.floor(3000 / (WAVE_BASE_COUNT + Math.floor((s - 1) / 2)))
+      const spawnNext = () => {
+        if (waveRemainingRef.current > 0 && stagePhaseRef.current === 'wave') {
+          enemiesRef.current.push({ ...makeEnemy(s), isWave: true })
+          waveRemainingRef.current--
+          if (waveRemainingRef.current > 0) timers.spawn = setTimeout(spawnNext, spawnMs)
+          else waveAllSpawnedRef.current = true
+        }
+      }
+      if (waveRemainingRef.current > 0) spawnNext()
+      else waveAllSpawnedRef.current = true
+      timers.wave = setTimeout(() => { clearTimeout(timers.spawn); waveAllSpawnedRef.current = true; endWave() }, WAVE_MAX_DURATION)
+      advanceStageRef.current = () => { clearTimeout(timers.wave); clearTimeout(timers.spawn); endWave() }
     } else if (phase === 'warning') {
       startWarning()
     } else {
@@ -649,6 +662,7 @@ export default function App() {
     stagePhaseRef.current      = 'playing'
     advanceStageRef.current    = null
     waveAllSpawnedRef.current  = false
+    waveRemainingRef.current   = 0
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
     setWaveWarning(false)
