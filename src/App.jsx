@@ -5,6 +5,8 @@ const GAME_W = 390
 const GAME_H = 693
 
 const PLAYER_R       = 18
+const WING_R         = 8    // companion plane radius
+const WING_OFFSET    = 30   // horizontal distance from player center to wing
 const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
@@ -12,6 +14,8 @@ const HOMING_SPEED   = 2.5
 const SPAWN_INTERVAL = 1300
 const DEFAULT_STATS  = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
+const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
+const SHOT_SPREAD_CX = Math.cos(SHOT_SPREAD)
 
 // CSS: scale canvas container to fit viewport, keep 9:16
 const CANVAS_STYLE = {
@@ -28,6 +32,10 @@ const UPGRADES = [
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
+  { icon: 'wingL',   label: 'Left Wing',    desc: 'Add left companion',    apply: (s,p) => { p.leftWing = true;  p.leftWingLevel  = 1 } },
+  { icon: 'wingR',   label: 'Right Wing',   desc: 'Add right companion',   apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1 } },
+  { icon: 'wingLup', label: 'Left Wing+',   desc: 'Left wing spread shot', apply: (s,p) => { p.leftWingLevel  = 2 } },
+  { icon: 'wingRup', label: 'Right Wing+',  desc: 'Right wing spread shot',apply: (s,p) => { p.rightWingLevel = 2 } },
 ]
 
 function pushHitEffect(effects, x, y) {
@@ -46,6 +54,10 @@ function pickCards(stats, player) {
       if (u.icon === 'rapid' && stats.shootInterval <= 100) return false
       if (u.icon === 'shield' && player.shieldActive) return false
       if ((u.icon === 'shieldrange' || u.icon === 'shieldpower') && !player.shieldActive) return false
+      if (u.icon === 'wingL'   && player.leftWing) return false
+      if (u.icon === 'wingR'   && player.rightWing) return false
+      if (u.icon === 'wingLup' && (!player.leftWing  || player.leftWingLevel  >= 2)) return false
+      if (u.icon === 'wingRup' && (!player.rightWing || player.rightWingLevel >= 2)) return false
       return true
     })
     .sort(() => Math.random() - 0.5)
@@ -116,6 +128,40 @@ function GameIcon({ name, size = 44 }) {
       <line x1={h+12} y1={q+10} x2={h} y2={t}/>
     </g></svg>
 
+  if (name === 'wingL') // Left companion: dot on left + arrow up, center dot
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={q-2} cy={h} r={6}/>
+      <line x1={q-2} y1={h-6} x2={q-2} y2={q+2}/>
+      <polyline points={`${q-7},${q+7} ${q-2},${q+2} ${q+3},${q+7}`}/>
+      <circle cx={h+4} cy={h+4} r={4}/>
+    </g></svg>
+
+  if (name === 'wingR') // Right companion: dot on right + arrow up, center dot
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={t+2} cy={h} r={6}/>
+      <line x1={t+2} y1={h-6} x2={t+2} y2={q+2}/>
+      <polyline points={`${t-3},${q+7} ${t+2},${q+2} ${t+7},${q+7}`}/>
+      <circle cx={h-4} cy={h+4} r={4}/>
+    </g></svg>
+
+  if (name === 'wingLup') // Left wing upgraded: dot + two spread arrows
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={q-2} cy={h} r={6}/>
+      <line x1={q-2} y1={h-6} x2={q-2} y2={q+2}/>
+      <polyline points={`${q-7},${q+7} ${q-2},${q+2} ${q+3},${q+7}`}/>
+      <line x1={q-2} y1={h-4} x2={q-10} y2={q+4}/>
+      <circle cx={h+4} cy={h+4} r={4}/>
+    </g></svg>
+
+  if (name === 'wingRup') // Right wing upgraded: dot + two spread arrows
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={t+2} cy={h} r={6}/>
+      <line x1={t+2} y1={h-6} x2={t+2} y2={q+2}/>
+      <polyline points={`${t-3},${q+7} ${t+2},${q+2} ${t+7},${q+7}`}/>
+      <line x1={t+2} y1={h-4} x2={t+10} y2={q+4}/>
+      <circle cx={h-4} cy={h+4} r={4}/>
+    </g></svg>
+
   return null
 }
 
@@ -142,7 +188,7 @@ export default function App() {
   const enemiesRef  = useRef([])
   const bulletsRef  = useRef([])
   const effectsRef  = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0 })
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const gameOverRef = useRef(false)
@@ -160,12 +206,13 @@ export default function App() {
     stageAnnTimer.current = setTimeout(() => setStageAnn(0), 2200)
   }
 
-  // Set canvas logical size once
+  // Set canvas logical size once; clear stageAnn timer on unmount
   useEffect(() => {
     const canvas = canvasRef.current
     canvas.width  = GAME_W
     canvas.height = GAME_H
     rectRef.current = canvas.getBoundingClientRect()
+    return () => clearTimeout(stageAnnTimer.current)
   }, [])
 
   // Move player — map CSS coords → game coords using cached rect
@@ -211,10 +258,16 @@ export default function App() {
       }
     }
 
-    // Regular trickle
-    const id = setInterval(() => {
-      enemiesRef.current.push(makeEnemy(stageRef.current))
-    }, SPAWN_INTERVAL)
+    // Regular trickle — interval shrinks slightly each stage (min 600ms)
+    let trickleTimer
+    const scheduleTrickle = () => {
+      const interval = Math.max(600, SPAWN_INTERVAL - (stageRef.current - 1) * 40)
+      trickleTimer = setTimeout(() => {
+        enemiesRef.current.push(makeEnemy(stageRef.current))
+        scheduleTrickle()
+      }, interval)
+    }
+    scheduleTrickle()
 
     // Wave burst every 10s → advance stage
     const waveId = setInterval(() => {
@@ -225,7 +278,7 @@ export default function App() {
       for (let i = 0; i < count; i++) enemiesRef.current.push(makeEnemy(s))
     }, 12000)
 
-    return () => { clearInterval(id); clearInterval(waveId) }
+    return () => { clearTimeout(trickleTimer); clearInterval(waveId) }
   }, [started, gameOver, paused])
 
   // Announce stage 1 on game start (only once, not on every resume)
@@ -260,6 +313,24 @@ export default function App() {
             vx: Math.sin(angle) * stats.bulletSpeed,
             vy: -Math.cos(angle) * stats.bulletSpeed,
           })
+        }
+        // Wing shots — fire from top of wing
+        const wingY = p.y + p.r - WING_R  // wing center y (bottom-aligned to player)
+        if (p.leftWing) {
+          const wx = p.x - WING_OFFSET, wy = wingY - WING_R
+          bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR, vx: 0, vy: -stats.bulletSpeed })
+          if (p.leftWingLevel >= 2)
+            bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR,
+              vx: -SHOT_SPREAD_SX * stats.bulletSpeed,
+              vy: -SHOT_SPREAD_CX * stats.bulletSpeed })
+        }
+        if (p.rightWing) {
+          const wx = p.x + WING_OFFSET, wy = wingY - WING_R
+          bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR, vx: 0, vy: -stats.bulletSpeed })
+          if (p.rightWingLevel >= 2)
+            bulletsRef.current.push({ x: wx, y: wy, r: stats.bulletR,
+              vx: SHOT_SPREAD_SX * stats.bulletSpeed,
+              vy: -SHOT_SPREAD_CX * stats.bulletSpeed })
         }
         lastShotRef.current = ts
       }
@@ -297,7 +368,7 @@ export default function App() {
           e.shieldHitAt = ts
           e.hp -= p.shieldPower
           if (e.hp <= 0) hitEnemies.add(ei)
-          else effectsRef.current.push({ kind: 'hit', x: e.x, y: e.y, life: 1, decay: 0.18 })
+          else pushHitEffect(effectsRef.current, e.x, e.y)
         }
       }
 
@@ -349,6 +420,10 @@ export default function App() {
         e.y < GAME_H + ENEMY_R && e.y > -ENEMY_R * 2 &&
         e.x > -ENEMY_R * 2   && e.x < GAME_W + ENEMY_R * 2
       )
+      ctx.shadowBlur = 0
+      ctx.fillStyle = '#fff'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
       for (const e of enemiesRef.current) {
         if (e.homing) {
           const dx = p.x - e.x, dy = p.y - e.y
@@ -361,16 +436,18 @@ export default function App() {
         if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
         drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
         ctx.shadowBlur = 0
-        ctx.fillStyle = '#fff'
         ctx.font = `${Math.round(e.r * 0.9)}px monospace`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
         ctx.fillText(e.hp, e.x, e.y)
-        ctx.textBaseline = 'alphabetic'
       }
+      ctx.textBaseline = 'alphabetic'
 
       // Draw player
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
+
+      // Draw companion wings — bottom-aligned to player
+      const wingY = p.y + p.r - WING_R
+      if (p.leftWing)  drawCircle(ctx, p.x - WING_OFFSET, wingY, WING_R, '#ff6060', 10)
+      if (p.rightWing) drawCircle(ctx, p.x + WING_OFFSET, wingY, WING_R, '#ff6060', 10)
 
       // Draw shield
       if (p.shieldActive) {
@@ -425,7 +502,7 @@ export default function App() {
     stageRef.current           = 1
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0 }
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
     setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
