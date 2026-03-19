@@ -92,8 +92,8 @@
 | Shield Range | 쉴드 반지름 +8 |
 | Shield Power | 쉴드 파워 +0.5 |
 | Add Shot | 발사 수 +1 (spread) |
-| Left Wing | 왼쪽 비행기 추가 → 레이저 빔 (1 dmg/s, 연속 수직 빔) |
-| Right Wing | 오른쪽 비행기 추가 → 유도탄 (3초마다 가장 가까운 적 추적, 공격력 2) |
+| Left Wing | 왼쪽 비행기 추가 → 레이저 빔 (0.4 dmg/s, 가장 가까운 적 조준) |
+| Right Wing | 오른쪽 비행기 추가 → 유도탄 (2초마다 가장 가까운 적 추적, 공격력 2) |
 | Left Wing+ | 레이저 공격력 +0.2/s |
 | Right Wing+ | 유도탄 공격력 +1 |
 

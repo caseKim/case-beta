@@ -14,7 +14,7 @@ const HOMING_SPEED   = 2.5
 const LASER_W           = 4    // laser beam collision half-width
 const WING_MISSILE_R    = 4
 const WING_MISSILE_SPD  = 5
-const WING_MISSILE_INT  = 3000  // ms between wing missile shots
+const WING_MISSILE_INT  = 2000  // ms between wing missile shots
 const SPAWN_INTERVAL    = 1300
 const SHOOTER_R         = 12
 const SHOOTER_SPEED     = 1.2
@@ -42,7 +42,7 @@ const UPGRADES = [
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
-  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 1.0 } },
+  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4 } },
   { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0 } },
   { icon: 'wingRup', label: 'Left Wing+',   desc: 'Laser power +0.2/s',    apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
   { icon: 'wingLup', label: 'Right Wing+',  desc: 'Missile power +1',      apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
@@ -518,7 +518,7 @@ export default function App() {
         ctx.moveTo(lwx, lwy)
         ctx.lineTo(tx, ty)
         ctx.strokeStyle = ctx.shadowColor = '#ff6060'
-        ctx.shadowBlur = 16; ctx.lineWidth = 3
+        ctx.shadowBlur = 8; ctx.lineWidth = 1
         ctx.stroke()
         ctx.shadowBlur = 0
       }
