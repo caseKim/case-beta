@@ -11,8 +11,14 @@ const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
-const SPAWN_INTERVAL = 1300
-const DEFAULT_STATS  = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
+const SPAWN_INTERVAL    = 1300
+const SHOOTER_R         = 12
+const SHOOTER_SPEED     = 1.2
+const SHOOTER_COLOR     = '#30d158'  // neon green
+const MISSILE_R         = 5
+const MISSILE_SPEED     = 4
+const MISSILE_INTERVAL  = 2500       // ms between shots
+const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
 const SHOT_SPREAD_CX = Math.cos(SHOT_SPREAD)
@@ -186,9 +192,10 @@ export default function App() {
   const paused = cards.length > 0
 
   const canvasRef   = useRef(null)
-  const enemiesRef  = useRef([])
-  const bulletsRef  = useRef([])
-  const effectsRef  = useRef([])
+  const enemiesRef      = useRef([])
+  const bulletsRef      = useRef([])
+  const effectsRef      = useRef([])
+  const enemyBulletsRef = useRef([])
   const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
@@ -243,19 +250,22 @@ export default function App() {
     if (!started || gameOver || paused) return
 
     const makeEnemy = (s) => {
-      const rand  = Math.random()
-      const fast  = rand < 0.25
-      const homing = rand >= 0.85
+      const rand    = Math.random()
+      const fast    = rand < 0.25
+      const shooter = !fast && rand >= 0.90
+      const homing  = !fast && !shooter && rand >= 0.85
       const speedScale = 1 + (s - 1) * 0.025
       const maxHp = 1 + Math.floor(s / 5)   // stage 1-4: 1hp, 5-9: 2hp, 10-14: 3hp …
+      const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : ENEMY_R
       return {
-        x:     ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
-        y:     -ENEMY_R,
-        r:     fast ? ENEMY_R - 4 : ENEMY_R,
-        speed: (fast ? FAST_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
-        color: homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
-        font:  `${Math.round((fast ? ENEMY_R - 4 : ENEMY_R) * 0.9)}px monospace`,
-        homing,
+        x:      ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
+        y:      -ENEMY_R,
+        r,
+        speed:  (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
+        color:  shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
+        font:   `${Math.round(r * 0.9)}px monospace`,
+        homing, shooter,
+        lastShot: 0,
         hp: maxHp, maxHp,
       }
     }
@@ -434,6 +444,18 @@ export default function App() {
         } else {
           e.y += e.speed
         }
+        // Shooter fires missiles toward player
+        if (e.shooter && ts - e.lastShot >= MISSILE_INTERVAL) {
+          e.lastShot = ts
+          const dx = p.x - e.x, dy = p.y - e.y
+          const dist = Math.hypot(dx, dy) || 1
+          enemyBulletsRef.current.push({
+            x: e.x, y: e.y + e.r,
+            r: MISSILE_R,
+            vx: (dx / dist) * MISSILE_SPEED,
+            vy: (dy / dist) * MISSILE_SPEED,
+          })
+        }
         if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
         drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
         ctx.fillStyle = '#fff'
@@ -441,6 +463,16 @@ export default function App() {
         ctx.fillText(e.hp, e.x, e.y)
       }
       ctx.textBaseline = 'alphabetic'
+
+      // Enemy missiles — move, draw, check player collision (shield does not block)
+      enemyBulletsRef.current = enemyBulletsRef.current.filter(m =>
+        m.y < GAME_H + m.r && m.y > -m.r && m.x > -m.r && m.x < GAME_W + m.r
+      )
+      for (const m of enemyBulletsRef.current) {
+        m.x += m.vx; m.y += m.vy
+        if (collides(m, p)) { gameOverRef.current = true; setGameOver(true); return }
+        drawCircle(ctx, m.x, m.y, m.r, SHOOTER_COLOR, 14)
+      }
 
       // Draw player
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
@@ -494,9 +526,10 @@ export default function App() {
   }
 
   const restart = () => {
-    enemiesRef.current  = []
-    bulletsRef.current  = []
-    effectsRef.current  = []
+    enemiesRef.current      = []
+    bulletsRef.current      = []
+    effectsRef.current      = []
+    enemyBulletsRef.current = []
     scoreRef.current    = 0
     lastShotRef.current = 0
     gameOverRef.current        = false
