@@ -375,7 +375,10 @@ export default function App() {
 
   // Announce stage 1 on game start (only once, not on every resume)
   useEffect(() => {
-    if (started && !gameOver) showStage(1)
+    if (started && !gameOver) {
+      phaseStartRef.current = Date.now()
+      showStage(1)
+    }
   }, [started])
 
   // Game loop
