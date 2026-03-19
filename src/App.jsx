@@ -19,7 +19,7 @@ const LASER_W             = 4      // laser beam collision half-width
 const WING_MISSILE_R    = 4
 const WING_MISSILE_SPD  = 5
 const WING_MISSILE_INT  = 2000  // ms between wing missile shots
-const SPAWN_INTERVAL    = 1300
+const SPAWN_INTERVAL    = 1100
 const SHOOTER_R         = 12
 const SHOOTER_SPEED     = 1.2
 const SHOOTER_COLOR     = '#30d158'  // neon green
@@ -30,7 +30,7 @@ const CANNON_INTERVAL    = 1800   // ms between cannon shots
 const CANNON_SPEED       = 4      // px/frame toward target
 const CANNON_BASE_POWER  = 5
 const CANNON_BASE_RADIUS = 65
-const CANNON_FIXED_RANGE = 280  // px ahead (upward) where the shell explodes
+const CANNON_FIXED_RANGE = 320  // px ahead (upward) where the shell explodes
 const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
@@ -50,14 +50,33 @@ const UPGRADES = [
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
-  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4 } },
-  { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0 } },
-  { icon: 'wingRup', label: 'Left Wing+',   desc: 'Laser power +0.2/s',    apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
-  { icon: 'wingLup',     label: 'Right Wing+',  desc: 'Missile power +1',         apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
+  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4; p.leftWingLaserCount = 1 } },
+  { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0; p.rightWingMissileCount = 1 } },
+  { icon: 'wingRup',   label: 'Left Wing Power+',  desc: 'Laser power +0.2/s',          apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
+  { icon: 'lasercount', label: 'Left Wing Shot+',  desc: '+1 laser beam per frame',     apply: (s,p) => { p.leftWingLaserCount += 1 } },
+  { icon: 'wingLup',      label: 'Right Wing Power+', desc: 'Missile power +1',            apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
+  { icon: 'missilecount', label: 'Right Wing Shot+',  desc: '+1 homing missile per salvo', apply: (s,p) => { p.rightWingMissileCount += 1 } },
   { icon: 'cannon',      label: 'Cannon',       desc: 'AoE mortar (pow 5, r 65)', apply: (s,p) => { p.cannonActive = true; p.cannonPower = CANNON_BASE_POWER; p.cannonRadius = CANNON_BASE_RADIUS; p.cannonLastShot = 0 } },
   { icon: 'cannonpower', label: 'Cannon Power+', desc: 'Cannon damage +2',         apply: (s,p) => { p.cannonPower += 2 } },
   { icon: 'cannonrange', label: 'Cannon Range+', desc: 'Blast radius +15',         apply: (s,p) => { p.cannonRadius += 15 } },
 ]
+
+// Returns up to `count` nearest enemies sorted by distance. skipSet: Set of indices to exclude.
+function getNearestEnemies(enemies, ox, oy, count, skipSet) {
+  const results = []
+  for (let ei = 0; ei < enemies.length; ei++) {
+    if (skipSet && skipSet.has(ei)) continue
+    const e = enemies[ei]
+    const d = Math.hypot(e.x - ox, e.y - oy)
+    let ins = results.length
+    while (ins > 0 && results[ins - 1].d > d) ins--
+    if (ins < count) {
+      results.splice(ins, 0, { e, ei, d })
+      if (results.length > count) results.pop()
+    }
+  }
+  return results
+}
 
 function pushHitEffect(effects, x, y) {
   effects.push({ kind: 'hit', x, y, life: 1, decay: 0.18 })
@@ -72,6 +91,7 @@ function collides(a, b) {
 function pickCards(stats, player) {
   return [...UPGRADES]
     .filter(u => {
+      if (u.icon === 'addshot' && stats.shotCount >= 7) return false
       if (u.icon === 'rapid' && stats.shootInterval <= 100) return false
       if (u.icon === 'shield' && player.shieldActive) return false
       if ((u.icon === 'shieldrange' || u.icon === 'shieldpower') && !player.shieldActive) return false
@@ -79,6 +99,8 @@ function pickCards(stats, player) {
       if (u.icon === 'wingL'   && player.rightWing) return false
       if (u.icon === 'wingRup' && (!player.leftWing  || player.leftWingLevel  >= 2)) return false
       if (u.icon === 'wingLup' && (!player.rightWing || player.rightWingLevel >= 2)) return false
+      if (u.icon === 'missilecount' && (!player.rightWing || player.rightWingMissileCount >= 3)) return false
+      if (u.icon === 'lasercount' && (!player.leftWing || player.leftWingLaserCount >= 3)) return false
       if (u.icon === 'cannon'      && player.cannonActive) return false
       if ((u.icon === 'cannonpower' || u.icon === 'cannonrange') && !player.cannonActive) return false
       return true
@@ -178,6 +200,24 @@ function GameIcon({ name, size = 44 }) {
       <circle cx={h-4} cy={h+4} r={4}/>
     </g></svg>
 
+  if (name === 'lasercount') // Right wing dot firing two diverging laser lines upward
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={t+2} cy={h} r={6}/>
+      <line x1={t+2} y1={h-6} x2={t-4} y2={q+2}/>
+      <line x1={t+2} y1={h-6} x2={t+8} y2={q+2}/>
+      <circle cx={h-4} cy={h+4} r={4}/>
+    </g></svg>
+
+  if (name === 'missilecount') // Wing dot firing two diverging missiles upward
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={q-2} cy={h} r={6}/>
+      <line x1={q-2} y1={h-6} x2={q-8} y2={q+2}/>
+      <polyline points={`${q-13},${q+7} ${q-8},${q+2} ${q-3},${q+7}`}/>
+      <line x1={q-2} y1={h-6} x2={q+4} y2={q+2}/>
+      <polyline points={`${q-1},${q+7} ${q+4},${q+2} ${q+9},${q+7}`}/>
+      <circle cx={h+4} cy={h+4} r={4}/>
+    </g></svg>
+
   if (name === 'cannon' || name === 'cannonpower' || name === 'cannonrange') {
     const arc = `M ${q+4} ${t-2} Q ${h+6} ${q-2} ${t} ${h}`
     return <svg width={size} height={size} viewBox={v}><g {...g}>
@@ -223,7 +263,7 @@ export default function App() {
   const effectsRef      = useRef([])
   const enemyBulletsRef = useRef([])
   const cannonShellsRef = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 })
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const timeRef     = useRef(0)
@@ -241,6 +281,7 @@ export default function App() {
   const phaseStartRef      = useRef(0)          // Date.now() when current phase began
   const stageAnnTimer   = useRef(null)
   const targetXRef      = useRef(GAME_W / 2)
+  const invincibleRef   = useRef(0)  // frames remaining of post-levelup invincibility
 
   const showStage = (n) => {
     if (stageAnnTimer.current) clearTimeout(stageAnnTimer.current)
@@ -387,7 +428,7 @@ export default function App() {
 
     // Trickle — only during 'playing' phase
     const scheduleTrickle = () => {
-      const interval = Math.max(600, SPAWN_INTERVAL - (stageRef.current - 1) * 40)
+      const interval = Math.max(500, SPAWN_INTERVAL - (stageRef.current - 1) * 30)
       timers.trickle = setTimeout(() => {
         if (stagePhaseRef.current === 'playing') enemiesRef.current.push(makeEnemy(stageRef.current))
         scheduleTrickle()
@@ -438,22 +479,22 @@ export default function App() {
         lastShotRef.current = ts
       }
 
-      // Right wing — fire homing missile toward nearest enemy
+      // Right wing — fire homing missiles toward N nearest enemies
       if (p.rightWing && ts - p.rightWingLastShot >= WING_MISSILE_INT) {
         const wMx = p.x + WING_OFFSET
-        const nearest = enemiesRef.current.reduce((best, e) => {
-          const d = Math.hypot(e.x - wMx, e.y - wingY)
-          return (!best || d < best.d) ? { e, d } : best
-        }, null)
-        if (nearest) {
-          const ddx = nearest.e.x - wMx, ddy = nearest.e.y - wingY
-          const dist = Math.hypot(ddx, ddy) || 1
-          bulletsRef.current.push({
-            x: wMx, y: wingY, r: WING_MISSILE_R,
-            vx: (ddx / dist) * WING_MISSILE_SPD,
-            vy: (ddy / dist) * WING_MISSILE_SPD,
-            power: p.rightWingPower, homingTarget: nearest.e,
-          })
+        const count = p.rightWingMissileCount || 1
+        const targets = getNearestEnemies(enemiesRef.current, wMx, wingY, count, null)
+        if (targets.length > 0) {
+          for (const { e: target } of targets) {
+            const ddx = target.x - wMx, ddy = target.y - wingY
+            const dist = Math.hypot(ddx, ddy) || 1
+            bulletsRef.current.push({
+              x: wMx, y: wingY, r: WING_MISSILE_R,
+              vx: (ddx / dist) * WING_MISSILE_SPD,
+              vy: (ddy / dist) * WING_MISSILE_SPD,
+              power: p.rightWingPower, homingTarget: target,
+            })
+          }
           p.rightWingLastShot = ts
         }
       }
@@ -549,19 +590,14 @@ export default function App() {
       }
 
       // Laser — left wing locks onto nearest enemy
-      let laserTarget = null
+      let laserTargets = []
       if (p.leftWing) {
         const lwx = p.x - WING_OFFSET
-        let minD = Infinity
-        for (let ei = 0; ei < enemiesRef.current.length; ei++) {
-          if (hitEnemies.has(ei)) continue
-          const e = enemiesRef.current[ei]
-          const d = Math.hypot(e.x - lwx, e.y - wingY)
-          if (d < minD) { minD = d; laserTarget = { e, ei } }
-        }
-        if (laserTarget) {
-          laserTarget.e.hp -= p.laserDps / 60
-          if (laserTarget.e.hp <= 0) hitEnemies.add(laserTarget.ei)
+        const count = p.leftWingLaserCount || 1
+        laserTargets = getNearestEnemies(enemiesRef.current, lwx, wingY, count, hitEnemies)
+        for (const t of laserTargets) {
+          t.e.hp -= p.laserDps / 60
+          if (t.e.hp <= 0) hitEnemies.add(t.ei)
         }
       }
 
@@ -676,11 +712,37 @@ export default function App() {
             vy: (dy / dist) * MISSILE_SPEED,
           })
         }
-        if (collides(e, p)) { gameOverRef.current = true; setGameOver(true); return }
+        if (collides(e, p) && invincibleRef.current <= 0) { gameOverRef.current = true; setGameOver(true); return }
         drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
-        ctx.fillStyle = '#fff'
-        ctx.font = e.font
-        ctx.fillText(+(e.hp.toFixed(1)), e.x, e.y)
+        // HP arc gauge — curved inside bottom of enemy circle
+        {
+          const ratio = Math.max(0, Math.min(1, e.hp / e.maxHp))
+          const arcR = e.r * 0.72
+          // bottom arc: from lower-right (0.15π) clockwise to lower-left (0.85π), passing through π/2 (bottom)
+          const aStart = Math.PI * 0.15
+          const aEnd   = Math.PI * 0.85
+          const aFull  = aEnd - aStart
+          // lighten enemy color for gauge fill
+          const hr = parseInt(e.color.slice(1,3),16), hg = parseInt(e.color.slice(3,5),16), hb = parseInt(e.color.slice(5,7),16)
+          const lr = Math.min(255, hr + 90), lg = Math.min(255, hg + 90), lb = Math.min(255, hb + 90)
+          const gaugeColor = `rgb(${lr},${lg},${lb})`
+          // track (dark semi-transparent)
+          ctx.beginPath()
+          ctx.arc(e.x, e.y, arcR, aStart, aEnd)
+          ctx.strokeStyle = 'rgba(0,0,0,0.4)'
+          ctx.lineWidth = e.r * 0.18
+          ctx.lineCap = 'round'
+          ctx.stroke()
+          // fill
+          if (ratio > 0) {
+            ctx.beginPath()
+            ctx.arc(e.x, e.y, arcR, aEnd - aFull * ratio, aEnd)
+            ctx.strokeStyle = gaugeColor
+            ctx.lineWidth = e.r * 0.18
+            ctx.lineCap = 'round'
+            ctx.stroke()
+          }
+        }
       }
       ctx.textBaseline = 'alphabetic'
 
@@ -690,26 +752,39 @@ export default function App() {
       )
       for (const m of enemyBulletsRef.current) {
         m.x += m.vx; m.y += m.vy
-        if (collides(m, p)) { gameOverRef.current = true; setGameOver(true); return }
+        if (collides(m, p) && invincibleRef.current <= 0) { gameOverRef.current = true; setGameOver(true); return }
         drawCircle(ctx, m.x, m.y, m.r, SHOOTER_COLOR, 14)
       }
 
-      // Draw laser beam — left wing toward locked target (or straight up if no enemy)
+      // Draw laser beams — left wing toward N nearest targets (or straight up if no enemy)
       if (p.leftWing) {
         const lwx = p.x - WING_OFFSET, lwy = wingY - WING_R
-        const tx = laserTarget ? laserTarget.e.x : lwx
-        const ty = laserTarget ? laserTarget.e.y : 0
-        ctx.beginPath()
-        ctx.moveTo(lwx, lwy)
-        ctx.lineTo(tx, ty)
         ctx.strokeStyle = ctx.shadowColor = '#ff6060'
         ctx.shadowBlur = 8; ctx.lineWidth = 2
-        ctx.stroke()
+        const beams = laserTargets.length > 0 ? laserTargets : [null]
+        for (const t of beams) {
+          const tx = t ? t.e.x : lwx
+          const ty = t ? t.e.y : 0
+          ctx.beginPath(); ctx.moveTo(lwx, lwy); ctx.lineTo(tx, ty); ctx.stroke()
+        }
         ctx.shadowBlur = 0
       }
 
       // Draw player
+      if (invincibleRef.current > 0) invincibleRef.current--
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
+      if (invincibleRef.current > 0) {
+        const progress = invincibleRef.current / 90
+        const pulse = 0.5 + 0.5 * Math.sin(timeRef.current * 0.25)
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.r + 7 + pulse * 5, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(0,229,255,${progress * (0.3 + pulse * 0.5)})`
+        ctx.shadowColor = '#00e5ff'
+        ctx.shadowBlur = 16
+        ctx.lineWidth = 2
+        ctx.stroke()
+        ctx.shadowBlur = 0
+      }
 
       // Cannon indicator — small green dot at player top-center
       if (p.cannonActive)
@@ -779,6 +854,8 @@ export default function App() {
 
   const selectCard = (upgrade) => {
     upgrade.apply(statsRef.current, playerRef.current)
+    playerRef.current.x = targetXRef.current  // snap to current finger position
+    invincibleRef.current = 90                // 1.5s invincibility on resume
     setCards([])
   }
 
@@ -800,9 +877,10 @@ export default function App() {
     waveRemainingRef.current   = 0
     phaseStartRef.current      = Date.now()
     targetXRef.current         = GAME_W / 2
+    invincibleRef.current      = 0
     setStageAnn(0)
     setWaveWarning(false)
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 }
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
     setIsNewRecord(false)
