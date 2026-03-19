@@ -355,8 +355,9 @@ export default function App() {
       const remaining = Math.max(0, WARNING_DURATION - elapsed)
       timers.wave = setTimeout(startWave, remaining)
     } else {
-      const elapsed = Date.now() - phaseStartRef.current
+      const elapsed = phaseStartRef.current > 0 ? Date.now() - phaseStartRef.current : 0
       const remaining = Math.max(0, STAGE_PLAY_DURATION - elapsed)
+      phaseStartRef.current = Date.now() - elapsed  // ensure it's set
       timers.wave = setTimeout(startWarning, remaining)
     }
 
