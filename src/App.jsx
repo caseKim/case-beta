@@ -12,7 +12,7 @@ const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
 const LASER_W           = 4    // laser beam collision half-width
-const WING_MISSILE_R    = 6
+const WING_MISSILE_R    = 4
 const WING_MISSILE_SPD  = 5
 const WING_MISSILE_INT  = 3000  // ms between wing missile shots
 const SPAWN_INTERVAL    = 1300
@@ -402,17 +402,20 @@ export default function App() {
         }
       }
 
-      // Laser — left wing continuous beam damage
+      // Laser — left wing locks onto nearest enemy
+      let laserTarget = null
       if (p.leftWing) {
-        const lx = p.x - WING_OFFSET
-        const dmg = p.laserDps / 60
+        const lwx = p.x - WING_OFFSET
+        let minD = Infinity
         for (let ei = 0; ei < enemiesRef.current.length; ei++) {
           if (hitEnemies.has(ei)) continue
           const e = enemiesRef.current[ei]
-          if (Math.abs(e.x - lx) < e.r + LASER_W / 2) {
-            e.hp -= dmg
-            if (e.hp <= 0) hitEnemies.add(ei)
-          }
+          const d = Math.hypot(e.x - lwx, e.y - wingY)
+          if (d < minD) { minD = d; laserTarget = { e, ei } }
+        }
+        if (laserTarget) {
+          laserTarget.e.hp -= p.laserDps / 60
+          if (laserTarget.e.hp <= 0) hitEnemies.add(laserTarget.ei)
         }
       }
 
@@ -492,7 +495,7 @@ export default function App() {
         drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
         ctx.fillStyle = '#fff'
         ctx.font = e.font
-        ctx.fillText(e.hp, e.x, e.y)
+        ctx.fillText(+(e.hp.toFixed(1)), e.x, e.y)
       }
       ctx.textBaseline = 'alphabetic'
 
@@ -506,12 +509,14 @@ export default function App() {
         drawCircle(ctx, m.x, m.y, m.r, SHOOTER_COLOR, 14)
       }
 
-      // Draw laser beam — left wing
+      // Draw laser beam — left wing toward locked target (or straight up if no enemy)
       if (p.leftWing) {
-        const lx = p.x - WING_OFFSET
+        const lwx = p.x - WING_OFFSET, lwy = wingY - WING_R
+        const tx = laserTarget ? laserTarget.e.x : lwx
+        const ty = laserTarget ? laserTarget.e.y : 0
         ctx.beginPath()
-        ctx.moveTo(lx, wingY - WING_R)
-        ctx.lineTo(lx, 0)
+        ctx.moveTo(lwx, lwy)
+        ctx.lineTo(tx, ty)
         ctx.strokeStyle = ctx.shadowColor = '#ff6060'
         ctx.shadowBlur = 16; ctx.lineWidth = 3
         ctx.stroke()
