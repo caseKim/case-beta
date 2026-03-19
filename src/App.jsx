@@ -9,8 +9,8 @@ const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
-const SPAWN_INTERVAL = 1200
-const DEFAULT_STATS  = { bulletSpeed: 4, bulletR: 3, bulletPower: 1, shootInterval: 800, shotCount: 1 }
+const SPAWN_INTERVAL = 1300
+const DEFAULT_STATS  = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 
 // CSS: scale canvas container to fit viewport, keep 9:16
@@ -21,11 +21,11 @@ const CANVAS_STYLE = {
 }
 
 const UPGRADES = [
-  { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -30ms',  apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 30) } },
-  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +1',       apply: s     => { s.bulletSpeed += 1 } },
-  { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.2',     apply: s     => { s.bulletPower += 0.2 } },
-  { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 10; p.shieldPower = 1 } },
-  { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +5',   apply: (s,p) => { p.shieldR += 5 } },
+  { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -50ms',  apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 50) } },
+  { icon: 'swift',   label: 'Swift Bullets', desc: 'Bullet speed +2',       apply: s     => { s.bulletSpeed += 2 } },
+  { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.5',     apply: s     => { s.bulletPower += 0.5 } },
+  { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 14; p.shieldPower = 1 } },
+  { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
 ]
@@ -43,7 +43,7 @@ function collides(a, b) {
 function pickCards(stats, player) {
   return [...UPGRADES]
     .filter(u => {
-      if (u.icon === 'rapid' && stats.shootInterval <= 120) return false
+      if (u.icon === 'rapid' && stats.shootInterval <= 100) return false
       if (u.icon === 'shield' && player.shieldActive) return false
       if ((u.icon === 'shieldrange' || u.icon === 'shieldpower') && !player.shieldActive) return false
       return true
@@ -146,12 +146,13 @@ export default function App() {
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const gameOverRef = useRef(false)
-  const xpRef       = useRef({ current: 0, level: 1, max: 5 })
+  const xpRef       = useRef({ current: 0, level: 1, max: 4 })
   const statsRef    = useRef({ ...DEFAULT_STATS })
   const lastShotRef = useRef(0)
   const rectRef     = useRef(null)  // cached canvas bounding rect
   const stageRef        = useRef(1)   // current stage (1 = start, +1 every 10s wave)
   const stageAnnTimer   = useRef(null)
+  const targetXRef      = useRef(GAME_W / 2)  // lerp target for player x
 
   const showStage = (n) => {
     if (stageAnnTimer.current) clearTimeout(stageAnnTimer.current)
@@ -174,14 +175,16 @@ export default function App() {
       e.preventDefault()
       const clientX = e.touches ? e.touches[0].clientX : e.clientX
       const rect = rectRef.current
-      playerRef.current.x = (clientX - rect.left) * (GAME_W / rect.width)
+      targetXRef.current = (clientX - rect.left) * (GAME_W / rect.width)
     }
     const onResize = () => { rectRef.current = canvas.getBoundingClientRect() }
     canvas.addEventListener('mousemove', onMove)
+    canvas.addEventListener('touchstart', onMove, { passive: false })
     canvas.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('resize', onResize)
     return () => {
       canvas.removeEventListener('mousemove', onMove)
+      canvas.removeEventListener('touchstart', onMove)
       canvas.removeEventListener('touchmove', onMove)
       window.removeEventListener('resize', onResize)
     }
@@ -195,8 +198,8 @@ export default function App() {
       const rand  = Math.random()
       const fast  = rand < 0.25
       const homing = rand >= 0.85
-      const speedScale = 1 + (s - 1) * 0.03
-      const maxHp = 1 + Math.floor(s / 3)   // stage 1-2: 1hp, 3-5: 2hp, 6-8: 3hp …
+      const speedScale = 1 + (s - 1) * 0.025
+      const maxHp = 1 + Math.floor(s / 5)   // stage 1-4: 1hp, 5-9: 2hp, 10-14: 3hp …
       return {
         x:     ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
         y:     -ENEMY_R,
@@ -218,9 +221,9 @@ export default function App() {
       const s = stageRef.current + 1
       stageRef.current = s
       showStage(s)
-      const count = 3 + (s - 1) * 2   // stage 2 → 5, stage 3 → 7, …
+      const count = 2 + Math.floor((s - 1) / 2)  // stage 2→2, 4→3, 6→4, …
       for (let i = 0; i < count; i++) enemiesRef.current.push(makeEnemy(s))
-    }, 10000)
+    }, 12000)
 
     return () => { clearInterval(id); clearInterval(waveId) }
   }, [started, gameOver, paused])
@@ -242,6 +245,10 @@ export default function App() {
 
       const stats = statsRef.current
       const p     = playerRef.current
+
+      // Smooth player movement (lerp toward touch/mouse target)
+      const dx = targetXRef.current - p.x
+      if (Math.abs(dx) > 0.1) p.x += dx * 0.25
 
       // Shoot
       if (ts - lastShotRef.current >= stats.shootInterval) {
@@ -416,9 +423,10 @@ export default function App() {
     lastShotRef.current = 0
     gameOverRef.current        = false
     stageRef.current           = 1
+    targetXRef.current         = GAME_W / 2
     setStageAnn(0)
     playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0 }
-    xpRef.current       = { current: 0, level: 1, max: 5 }
+    xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
     setScore(0); setXp(0); setLevel(1); setCards([]); setGameOver(false)
   }
@@ -479,7 +487,7 @@ export default function App() {
         )}
 
         {/* Stage announcement */}
-        {stageAnn > 0 && (
+        {stageAnn > 0 && !paused && (
           <div style={{ ...overlay, pointerEvents: 'none' }}>
             <div style={{ ...mono, color: '#ffe600', fontSize: 22, letterSpacing: 6, textShadow: '0 0 12px #ffe600' }}>
               STAGE {stageAnn}
