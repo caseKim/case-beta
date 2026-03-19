@@ -218,6 +218,7 @@ export default function App() {
   const advanceStageRef    = useRef(null)       // called from game loop on early wave clear
   const waveAllSpawnedRef  = useRef(false)      // true once all wave enemies are in the field
   const waveRemainingRef   = useRef(0)          // enemies still to be spawned (survives pause)
+  const phaseStartRef      = useRef(0)          // Date.now() when current phase began
   const stageAnnTimer   = useRef(null)
   const targetXRef      = useRef(GAME_W / 2)
 
@@ -320,16 +321,18 @@ export default function App() {
 
     const startWarning = () => {
       stagePhaseRef.current = 'warning'
+      phaseStartRef.current = Date.now()
       setWaveWarning(true)
       timers.wave = setTimeout(startWave, WARNING_DURATION)
     }
 
     const scheduleWarning = () => {
       stagePhaseRef.current = 'playing'
+      phaseStartRef.current = Date.now()
       timers.wave = setTimeout(startWarning, STAGE_PLAY_DURATION)
     }
 
-    // Phase-aware restart (after level-up pause)
+    // Phase-aware restart (after level-up pause) — resume with remaining time
     const phase = stagePhaseRef.current
     if (phase === 'wave') {
       // Resume: continue spawning any remaining wave enemies
@@ -348,9 +351,13 @@ export default function App() {
       timers.wave = setTimeout(() => { clearTimeout(timers.spawn); waveAllSpawnedRef.current = true; endWave() }, WAVE_MAX_DURATION)
       advanceStageRef.current = () => { clearTimeout(timers.wave); clearTimeout(timers.spawn); endWave() }
     } else if (phase === 'warning') {
-      startWarning()
+      const elapsed = Date.now() - phaseStartRef.current
+      const remaining = Math.max(0, WARNING_DURATION - elapsed)
+      timers.wave = setTimeout(startWave, remaining)
     } else {
-      scheduleWarning()
+      const elapsed = Date.now() - phaseStartRef.current
+      const remaining = Math.max(0, STAGE_PLAY_DURATION - elapsed)
+      timers.wave = setTimeout(startWarning, remaining)
     }
 
     // Trickle — only during 'playing' phase
@@ -663,6 +670,7 @@ export default function App() {
     advanceStageRef.current    = null
     waveAllSpawnedRef.current  = false
     waveRemainingRef.current   = 0
+    phaseStartRef.current      = Date.now()
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
     setWaveWarning(false)
