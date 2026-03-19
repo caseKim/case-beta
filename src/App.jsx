@@ -38,10 +38,10 @@ const UPGRADES = [
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
-  { icon: 'wingL',   label: 'Left Wing',    desc: 'Add left companion',    apply: (s,p) => { p.leftWing = true;  p.leftWingLevel  = 1 } },
-  { icon: 'wingR',   label: 'Right Wing',   desc: 'Add right companion',   apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1 } },
-  { icon: 'wingLup', label: 'Left Wing+',   desc: 'Left wing spread shot', apply: (s,p) => { p.leftWingLevel  = 2 } },
-  { icon: 'wingRup', label: 'Right Wing+',  desc: 'Right wing spread shot',apply: (s,p) => { p.rightWingLevel = 2 } },
+  { icon: 'wingR',   label: 'Left Wing',    desc: 'Add left companion',    apply: (s,p) => { p.leftWing = true;  p.leftWingLevel  = 1 } },
+  { icon: 'wingL',   label: 'Right Wing',   desc: 'Add right companion',   apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1 } },
+  { icon: 'wingRup', label: 'Left Wing+',   desc: 'Left wing spread shot', apply: (s,p) => { p.leftWingLevel  = 2 } },
+  { icon: 'wingLup', label: 'Right Wing+',  desc: 'Right wing spread shot',apply: (s,p) => { p.rightWingLevel = 2 } },
 ]
 
 function pushHitEffect(effects, x, y) {
