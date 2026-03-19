@@ -14,7 +14,7 @@ const HOMING_SPEED   = 2.5
 const STAGE_PLAY_DURATION = 12000  // ms of normal trickle before wave warning
 const WARNING_DURATION    = 2000   // ms of WARNING display before wave
 const WAVE_MAX_DURATION   = 5000   // ms max for wave phase
-const WAVE_BASE_COUNT     = 15     // enemies in wave at stage 2
+const WAVE_BASE_COUNT     = 25     // enemies per wave (base)
 const LASER_W             = 4      // laser beam collision half-width
 const WING_MISSILE_R    = 4
 const WING_MISSILE_SPD  = 5
@@ -214,8 +214,9 @@ export default function App() {
   const lastShotRef = useRef(0)
   const rectRef     = useRef(null)  // cached canvas bounding rect
   const stageRef        = useRef(1)
-  const stagePhaseRef   = useRef('playing')  // 'playing' | 'warning' | 'wave'
-  const advanceStageRef = useRef(null)       // called from game loop on early wave clear
+  const stagePhaseRef      = useRef('playing')  // 'playing' | 'warning' | 'wave'
+  const advanceStageRef    = useRef(null)       // called from game loop on early wave clear
+  const waveAllSpawnedRef  = useRef(false)      // true once all wave enemies are in the field
   const stageAnnTimer   = useRef(null)
   const targetXRef      = useRef(GAME_W / 2)
 
@@ -280,20 +281,24 @@ export default function App() {
     const timers = { wave: null, spawn: null, trickle: null }
 
     const endWave = () => {
+      // Stage advances when wave clears
+      const s = stageRef.current + 1
+      stageRef.current = s
+      showStage(s)
       stagePhaseRef.current = 'playing'
       advanceStageRef.current = null
+      waveAllSpawnedRef.current = false
       scheduleWarning()
     }
 
     const startWave = () => {
       stagePhaseRef.current = 'wave'
-      const s = stageRef.current + 1
-      stageRef.current = s
-      showStage(s)
+      waveAllSpawnedRef.current = false
       setWaveWarning(false)
       effectsRef.current.push({ kind: 'waveFlash', life: 1, decay: 0.035 })
 
-      // Rapid trickle: spread WAVE_BASE_COUNT enemies over 3s
+      // Spawn wave enemies rapidly over 3s using current stage stats
+      const s = stageRef.current
       const count = WAVE_BASE_COUNT + Math.floor((s - 1) / 2)
       const spawnMs = Math.floor(3000 / count)
       let spawned = 0
@@ -301,13 +306,14 @@ export default function App() {
         if (spawned < count && stagePhaseRef.current === 'wave') {
           enemiesRef.current.push({ ...makeEnemy(s), isWave: true })
           spawned++
-          timers.spawn = setTimeout(spawnNext, spawnMs)
+          if (spawned < count) timers.spawn = setTimeout(spawnNext, spawnMs)
+          else waveAllSpawnedRef.current = true
         }
       }
       spawnNext()
 
       // Max wave duration then auto-advance
-      timers.wave = setTimeout(() => { clearTimeout(timers.spawn); endWave() }, WAVE_MAX_DURATION)
+      timers.wave = setTimeout(() => { clearTimeout(timers.spawn); waveAllSpawnedRef.current = true; endWave() }, WAVE_MAX_DURATION)
       advanceStageRef.current = () => { clearTimeout(timers.wave); clearTimeout(timers.spawn); endWave() }
     }
 
@@ -325,6 +331,7 @@ export default function App() {
     // Phase-aware restart (after level-up pause)
     const phase = stagePhaseRef.current
     if (phase === 'wave') {
+      waveAllSpawnedRef.current = true  // treat as fully spawned on resume
       timers.wave = setTimeout(() => endWave(), WAVE_MAX_DURATION)
       advanceStageRef.current = () => { clearTimeout(timers.wave); endWave() }
     } else if (phase === 'warning') {
@@ -479,8 +486,8 @@ export default function App() {
       enemiesRef.current = enemiesRef.current.filter((_, i) => !hitEnemies.has(i))
       bulletsRef.current = bulletsRef.current.filter((_, i) => !hitBullets.has(i))
 
-      // Wave early completion — all wave enemies killed
-      if (stagePhaseRef.current === 'wave' && !enemiesRef.current.some(e => e.isWave))
+      // Wave completion — all wave enemies killed or passed off-screen
+      if (stagePhaseRef.current === 'wave' && waveAllSpawnedRef.current && !enemiesRef.current.some(e => e.isWave))
         advanceStageRef.current?.()
 
       // Draw & cull effects in one pass
@@ -641,6 +648,7 @@ export default function App() {
     stageRef.current           = 1
     stagePhaseRef.current      = 'playing'
     advanceStageRef.current    = null
+    waveAllSpawnedRef.current  = false
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
     setWaveWarning(false)
