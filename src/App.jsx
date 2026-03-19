@@ -11,7 +11,11 @@ const ENEMY_R        = 14
 const ENEMY_SPEED    = 2
 const FAST_SPEED     = 5
 const HOMING_SPEED   = 2.5
-const LASER_W           = 4    // laser beam collision half-width
+const STAGE_PLAY_DURATION = 12000  // ms of normal trickle before wave warning
+const WARNING_DURATION    = 2000   // ms of WARNING display before wave
+const WAVE_MAX_DURATION   = 5000   // ms max for wave phase
+const WAVE_BASE_COUNT     = 15     // enemies in wave at stage 2
+const LASER_W             = 4      // laser beam collision half-width
 const WING_MISSILE_R    = 4
 const WING_MISSILE_SPD  = 5
 const WING_MISSILE_INT  = 2000  // ms between wing missile shots
@@ -191,7 +195,8 @@ export default function App() {
   const [score,     setScore]    = useState(0)
   const [xp,        setXp]       = useState(0)
   const [level,     setLevel]    = useState(1)
-  const [stageAnn,  setStageAnn] = useState(0)  // 0 = hidden
+  const [stageAnn,     setStageAnn]    = useState(0)      // 0 = hidden
+  const [waveWarning,  setWaveWarning] = useState(false)
 
   const paused = cards.length > 0
 
@@ -208,9 +213,11 @@ export default function App() {
   const statsRef    = useRef({ ...DEFAULT_STATS })
   const lastShotRef = useRef(0)
   const rectRef     = useRef(null)  // cached canvas bounding rect
-  const stageRef        = useRef(1)   // current stage (1 = start, +1 every 10s wave)
+  const stageRef        = useRef(1)
+  const stagePhaseRef   = useRef('playing')  // 'playing' | 'warning' | 'wave'
+  const advanceStageRef = useRef(null)       // called from game loop on early wave clear
   const stageAnnTimer   = useRef(null)
-  const targetXRef      = useRef(GAME_W / 2)  // lerp target for player x
+  const targetXRef      = useRef(GAME_W / 2)
 
   const showStage = (n) => {
     if (stageAnnTimer.current) clearTimeout(stageAnnTimer.current)
@@ -259,43 +266,84 @@ export default function App() {
       const shooter = !fast && rand >= 0.90
       const homing  = !fast && !shooter && rand >= 0.85
       const speedScale = 1 + (s - 1) * 0.025
-      const maxHp = 1 + Math.floor(s / 4)   // stage 1-3: 1hp, 4-7: 2hp, 8-11: 3hp …
+      const maxHp = 1 + Math.floor(s / 4)
       const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : ENEMY_R
       return {
-        x:      ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2),
-        y:      -ENEMY_R,
-        r,
-        speed:  (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
-        color:  shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
-        font:   `${Math.round(r * 0.9)}px monospace`,
-        homing, shooter,
-        lastShot: 0,
-        hp: maxHp, maxHp,
+        x: ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2), y: -ENEMY_R, r,
+        speed: (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
+        color: shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
+        font:  `${Math.round(r * 0.9)}px monospace`,
+        homing, shooter, lastShot: 0, hp: maxHp, maxHp,
       }
     }
 
-    // Regular trickle — interval shrinks slightly each stage (min 600ms)
-    let trickleTimer
+    const timers = { wave: null, spawn: null, trickle: null }
+
+    const endWave = () => {
+      stagePhaseRef.current = 'playing'
+      advanceStageRef.current = null
+      scheduleWarning()
+    }
+
+    const startWave = () => {
+      stagePhaseRef.current = 'wave'
+      const s = stageRef.current + 1
+      stageRef.current = s
+      showStage(s)
+      setWaveWarning(false)
+      effectsRef.current.push({ kind: 'waveFlash', life: 1, decay: 0.035 })
+
+      // Rapid trickle: spread WAVE_BASE_COUNT enemies over 3s
+      const count = WAVE_BASE_COUNT + Math.floor((s - 1) / 2)
+      const spawnMs = Math.floor(3000 / count)
+      let spawned = 0
+      const spawnNext = () => {
+        if (spawned < count && stagePhaseRef.current === 'wave') {
+          enemiesRef.current.push({ ...makeEnemy(s), isWave: true })
+          spawned++
+          timers.spawn = setTimeout(spawnNext, spawnMs)
+        }
+      }
+      spawnNext()
+
+      // Max wave duration then auto-advance
+      timers.wave = setTimeout(() => { clearTimeout(timers.spawn); endWave() }, WAVE_MAX_DURATION)
+      advanceStageRef.current = () => { clearTimeout(timers.wave); clearTimeout(timers.spawn); endWave() }
+    }
+
+    const startWarning = () => {
+      stagePhaseRef.current = 'warning'
+      setWaveWarning(true)
+      timers.wave = setTimeout(startWave, WARNING_DURATION)
+    }
+
+    const scheduleWarning = () => {
+      stagePhaseRef.current = 'playing'
+      timers.wave = setTimeout(startWarning, STAGE_PLAY_DURATION)
+    }
+
+    // Phase-aware restart (after level-up pause)
+    const phase = stagePhaseRef.current
+    if (phase === 'wave') {
+      timers.wave = setTimeout(() => endWave(), WAVE_MAX_DURATION)
+      advanceStageRef.current = () => { clearTimeout(timers.wave); endWave() }
+    } else if (phase === 'warning') {
+      startWarning()
+    } else {
+      scheduleWarning()
+    }
+
+    // Trickle — only during 'playing' phase
     const scheduleTrickle = () => {
       const interval = Math.max(600, SPAWN_INTERVAL - (stageRef.current - 1) * 40)
-      trickleTimer = setTimeout(() => {
-        enemiesRef.current.push(makeEnemy(stageRef.current))
+      timers.trickle = setTimeout(() => {
+        if (stagePhaseRef.current === 'playing') enemiesRef.current.push(makeEnemy(stageRef.current))
         scheduleTrickle()
       }, interval)
     }
     scheduleTrickle()
 
-    // Wave burst every 12s → advance stage
-    const waveId = setInterval(() => {
-      const s = stageRef.current + 1
-      stageRef.current = s
-      showStage(s)
-      effectsRef.current.push({ kind: 'waveFlash', life: 1, decay: 0.035 })
-      const count = 3 + Math.floor((s - 1) / 2)  // stage 2→3, 4→4, 6→5, …
-      for (let i = 0; i < count; i++) enemiesRef.current.push(makeEnemy(s))
-    }, 12000)
-
-    return () => { clearTimeout(trickleTimer); clearInterval(waveId) }
+    return () => Object.values(timers).forEach(clearTimeout)
   }, [started, gameOver, paused])
 
   // Announce stage 1 on game start (only once, not on every resume)
@@ -430,6 +478,10 @@ export default function App() {
       })
       enemiesRef.current = enemiesRef.current.filter((_, i) => !hitEnemies.has(i))
       bulletsRef.current = bulletsRef.current.filter((_, i) => !hitBullets.has(i))
+
+      // Wave early completion — all wave enemies killed
+      if (stagePhaseRef.current === 'wave' && !enemiesRef.current.some(e => e.isWave))
+        advanceStageRef.current?.()
 
       // Draw & cull effects in one pass
       const liveEffects = []
@@ -587,8 +639,11 @@ export default function App() {
     lastShotRef.current = 0
     gameOverRef.current        = false
     stageRef.current           = 1
+    stagePhaseRef.current      = 'playing'
+    advanceStageRef.current    = null
     targetXRef.current         = GAME_W / 2
     setStageAnn(0)
+    setWaveWarning(false)
     playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, rightWingPower: 0, rightWingLastShot: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
@@ -647,6 +702,15 @@ export default function App() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Wave warning */}
+        {waveWarning && !paused && (
+          <div style={{ ...overlay, pointerEvents: 'none' }}>
+            <style>{`@keyframes warn{0%,100%{opacity:0.2}50%{opacity:1}}`}</style>
+            <div style={{ ...mono, color: '#ff3b30', fontSize: 36, letterSpacing: 10, textShadow: '0 0 24px #ff3b30', animation: 'warn 0.5s ease-in-out infinite' }}>WARNING</div>
+            <div style={{ ...mono, color: '#ff9f0a', fontSize: 14, letterSpacing: 4, marginTop: 10, opacity: 0.8 }}>WAVE INCOMING</div>
           </div>
         )}
 
