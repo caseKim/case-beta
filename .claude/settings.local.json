@@ -4,7 +4,12 @@
       "Bash(npm create:*)",
       "Bash(printf \"y\\\\n\")",
       "Bash(npx create-vite@latest . --template react)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm list:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
