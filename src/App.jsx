@@ -30,6 +30,9 @@ const SPLIT_COLOR       = '#ff9faa'  // light pink (sub-enemy)
 const GHOST_COLOR       = '#a78bfa'  // soft purple
 const GHOST_CYCLE       = 180        // frames per invincibility cycle (3s)
 const GHOST_INVINCIBLE_AT = 120      // frame within cycle where invincibility starts (2s on, 1s invincible)
+const ARMORED_R         = 22
+const ARMORED_COLOR     = '#8e9fb5'  // metallic blue-gray
+const ARMOR_DMG_MULT    = 0.5       // all incoming damage multiplier
 const MISSILE_R         = 5
 const MISSILE_SPEED     = 4
 const MISSILE_INTERVAL  = 2500       // ms between shots
@@ -343,14 +346,15 @@ export default function App() {
       const baseHp = 1 + Math.floor(s / 4)
       const splitter = !fast && !shooter && !homing && rand >= 0.80 && baseHp >= 2
       const ghost    = !fast && !shooter && !homing && !splitter && rand >= 0.75 && s >= 7
-      const maxHp = splitter ? baseHp + 1 : baseHp
-      const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : splitter ? SPLITTER_R : ENEMY_R
+      const armored  = !fast && !shooter && !homing && !splitter && !ghost && rand >= 0.70 && s >= 10
+      const maxHp = splitter ? baseHp + 1 : armored ? baseHp * 2 + 1 : baseHp
+      const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : splitter ? SPLITTER_R : armored ? ARMORED_R : ENEMY_R
       return {
         x: ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2), y: -r, r,
-        speed: (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : splitter ? ENEMY_SPEED * 0.8 : ENEMY_SPEED) * speedScale,
-        color: shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : splitter ? SPLITTER_COLOR : ghost ? GHOST_COLOR : '#ff2d55',
+        speed: (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : splitter ? ENEMY_SPEED * 0.8 : armored ? ENEMY_SPEED * 0.6 : ENEMY_SPEED) * speedScale,
+        color: shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : splitter ? SPLITTER_COLOR : ghost ? GHOST_COLOR : armored ? ARMORED_COLOR : '#ff2d55',
         font:  `${Math.round(r * 0.9)}px monospace`,
-        homing, shooter, splitter, ghost, ghostTick: 0, lastShot: 0, hp: maxHp, maxHp,
+        homing, shooter, splitter, ghost, ...(ghost ? { ghostTick: 0 } : {}), armored, lastShot: 0, hp: maxHp, maxHp,
       }
     }
 
@@ -563,7 +567,7 @@ export default function App() {
           if (ghostInvincible(e)) continue
           const ed = Math.hypot(e.x - exp.x, e.y - exp.y)
           if (ed < p.cannonRadius) {
-            const dmg = ed < p.cannonRadius * 0.4 ? p.cannonPower : p.cannonPower * (1 - ed / p.cannonRadius)
+            const dmg = (ed < p.cannonRadius * 0.4 ? p.cannonPower : p.cannonPower * (1 - ed / p.cannonRadius)) * (e.armored ? ARMOR_DMG_MULT : 1)
             e.hp -= dmg
             if (e.hp <= 0) hitEnemies.add(ei)
             else pushHitEffect(effectsRef.current, e.x, e.y)
@@ -579,7 +583,7 @@ export default function App() {
           if (hitBullets.has(bi)) continue
           if (collides(e, bulletsRef.current[bi])) {
             hitBullets.add(bi)
-            e.hp -= bulletsRef.current[bi].power ?? stats.bulletPower
+            e.hp -= (bulletsRef.current[bi].power ?? stats.bulletPower) * (e.armored ? ARMOR_DMG_MULT : 1)
             if (e.hp <= 0) { hitEnemies.add(ei); break }
             // hit but not dead — flash effect
             pushHitEffect(effectsRef.current, e.x, e.y)
@@ -597,7 +601,7 @@ export default function App() {
           if (!collides(e, shield)) continue
           if (ts - (e.shieldHitAt || 0) < 600) continue
           e.shieldHitAt = ts
-          e.hp -= p.shieldPower
+          e.hp -= p.shieldPower * (e.armored ? ARMOR_DMG_MULT : 1)
           if (e.hp <= 0) hitEnemies.add(ei)
           else pushHitEffect(effectsRef.current, e.x, e.y)
         }
@@ -611,7 +615,7 @@ export default function App() {
         laserTargets = getNearestEnemies(enemiesRef.current, lwx, wingY, count, hitEnemies)
         for (const t of laserTargets) {
           if (ghostInvincible(t.e)) continue
-          t.e.hp -= p.laserDps / 60
+          t.e.hp -= (p.laserDps / 60) * (t.e.armored ? ARMOR_DMG_MULT : 1)
           if (t.e.hp <= 0) hitEnemies.add(t.ei)
         }
       }
@@ -625,7 +629,7 @@ export default function App() {
           const e = enemiesRef.current[ei]
           const ddx = e.x - ef.x, ddy = e.y - ef.y
           if (ddx * ddx + ddy * ddy < r2 && !ghostInvincible(e)) {
-            e.hp -= ef.life * 0.04 * p.cannonPower
+            e.hp -= ef.life * 0.04 * p.cannonPower * (e.armored ? ARMOR_DMG_MULT : 1)
             if (e.hp <= 0) hitEnemies.add(ei)
           }
         }
