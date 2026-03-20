@@ -1128,7 +1128,7 @@ export default function App() {
                   onKeyDown={e => { if (e.key === 'Enter') confirmNickname() }}
                   maxLength={14}
                   autoFocus
-                  placeholder="PLAYER"
+                  placeholder=""
                   style={{ background: '#111', border: '1px solid #444', color: '#fff', ...mono, fontSize: 18, textAlign: 'center', padding: '10px 16px', borderRadius: 6, width: '60%', letterSpacing: 3, outline: 'none' }}
                 />
                 <button onClick={confirmNickname} style={{
@@ -1182,7 +1182,7 @@ export default function App() {
                       <div key={`${e.nickname}-${e.score}-${i}`} style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: isMe ? 'rgba(0,229,255,0.07)' : i === 0 ? 'rgba(255,230,0,0.04)' : 'transparent', borderRadius: 4, border: isMe ? '1px solid rgba(0,229,255,0.2)' : '1px solid transparent' }}>
                         <span style={{ ...mono, color: i === 0 ? '#ffe600' : i < 3 ? '#888' : '#333', fontSize: 11, width: 18 }}>{i + 1}</span>
                         <span style={{ ...mono, color: isMe ? '#00e5ff' : i === 0 ? '#ffe600' : '#888', fontSize: 12, flex: 1, marginLeft: 6 }}>{e.nickname}</span>
-                        <span style={{ ...mono, color: isMe ? '#00e5ff' : i === 0 ? '#ffe600' : '#00e5ff', fontSize: 13 }}>{e.score}</span>
+                        <span style={{ ...mono, color: i === 0 && !isMe ? '#ffe600' : '#00e5ff', fontSize: 13 }}>{e.score}</span>
                       </div>
                     )
                   })}

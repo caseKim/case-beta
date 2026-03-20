@@ -26,14 +26,14 @@ export async function fetchLeaderboard(tab, nickname) {
   if (tab === 'today') {
     const start = new Date()
     start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(500))
+    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(50))
   } else if (tab === 'week') {
     const start = new Date()
     start.setDate(start.getDate() - 7)
     start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(500))
+    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(50))
   } else {
-    q = query(scoresRef, orderBy('score', 'desc'), limit(500))
+    q = query(scoresRef, orderBy('score', 'desc'), limit(50))
   }
   const snap = await getDocs(q)
   const raw = snap.docs.map(d => d.data())
