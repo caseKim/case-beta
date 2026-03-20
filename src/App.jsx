@@ -23,11 +23,12 @@ const SPAWN_INTERVAL    = 1100
 const SHOOTER_R         = 12
 const SHOOTER_SPEED     = 1.2
 const SHOOTER_COLOR     = '#30d158'  // neon green
+const SHOOTER_MISSILE_COLOR = '#ff453a'  // red-orange (distinct from Shooter body)
 const SPLITTER_R        = 20
-const SPLITTER_COLOR    = '#ff6b81'  // pink-red
+const SPLITTER_COLOR    = '#ffd60a'  // yellow
 const SPLIT_R           = 8
-const SPLIT_COLOR       = '#ff9faa'  // light pink (sub-enemy)
-const GHOST_COLOR       = '#a78bfa'  // soft purple
+const SPLIT_COLOR       = '#ffe066'  // light yellow (sub-enemy)
+const GHOST_COLOR       = '#5ac8fa'  // cyan (distinct from Homing purple)
 const GHOST_CYCLE       = 180        // frames per invincibility cycle (3s)
 const GHOST_INVINCIBLE_AT = 120      // frame within cycle where invincibility starts (2s on, 1s invincible)
 const ARMORED_R         = 22
@@ -41,6 +42,11 @@ const CANNON_SPEED       = 4      // px/frame toward target
 const CANNON_BASE_POWER  = 5
 const CANNON_BASE_RADIUS = 65
 const CANNON_FIXED_RANGE = 320  // px ahead (upward) where the shell explodes
+const ORB_R            = 6      // orb collision + draw radius
+const ORB_ORBIT_R      = 52     // orbit distance from player center
+const ORB_SPEED        = 0.045  // radians per frame
+const ORB_DAMAGE       = 1.5    // damage per hit
+const ORB_HIT_INTERVAL = 800    // ms cooldown per enemy
 const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
@@ -58,7 +64,7 @@ const UPGRADES = [
   { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.5',     apply: s     => { s.bulletPower += 0.5 } },
   { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 14; p.shieldPower = 1 } },
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
-  { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +0.5',  apply: (s,p) => { p.shieldPower += 0.5 } },
+  { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +1',    apply: (s,p) => { p.shieldPower += 1 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
   { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4; p.leftWingLaserCount = 1 } },
   { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0; p.rightWingMissileCount = 1 } },
@@ -69,6 +75,8 @@ const UPGRADES = [
   { icon: 'cannon',      label: 'Cannon',       desc: 'AoE mortar (pow 5, r 65)', apply: (s,p) => { p.cannonActive = true; p.cannonPower = CANNON_BASE_POWER; p.cannonRadius = CANNON_BASE_RADIUS; p.cannonLastShot = 0 } },
   { icon: 'cannonpower', label: 'Cannon Power+', desc: 'Cannon damage +2',         apply: (s,p) => { p.cannonPower += 2 } },
   { icon: 'cannonrange', label: 'Cannon Range+', desc: 'Blast radius +15',         apply: (s,p) => { p.cannonRadius += 15 } },
+  { icon: 'orb',      label: 'Orb',      desc: 'Orbiting orb (dmg 1.5)',  apply: (s,p) => { p.orbActive = true; p.orbCount = 1; p.orbAngle = 0 } },
+  { icon: 'orbcount', label: 'Add Orb',  desc: '+1 orbiting orb',         apply: (s,p) => { p.orbCount += 1 } },
 ]
 
 // Returns up to `count` nearest enemies sorted by distance. skipSet: Set of indices to exclude.
@@ -115,6 +123,8 @@ function pickCards(stats, player) {
       if (u.icon === 'lasercount' && (!player.leftWing || player.leftWingLaserCount >= 3)) return false
       if (u.icon === 'cannon'      && player.cannonActive) return false
       if ((u.icon === 'cannonpower' || u.icon === 'cannonrange') && !player.cannonActive) return false
+      if (u.icon === 'orb'      && player.orbActive) return false
+      if (u.icon === 'orbcount' && (!player.orbActive || player.orbCount >= 5)) return false
       return true
     })
     .sort(() => Math.random() - 0.5)
@@ -241,6 +251,21 @@ function GameIcon({ name, size = 44 }) {
     </g></svg>
   }
 
+  if (name === 'orb') // Center dot with one orbiting circle
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={size*0.36} strokeOpacity={0.3} strokeDasharray="3 4"/>
+      <circle cx={h + size*0.36} cy={h} r={7}/>
+    </g></svg>
+
+  if (name === 'orbcount') // Center dot with two orbiting circles
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={size*0.36} strokeOpacity={0.3} strokeDasharray="3 4"/>
+      <circle cx={h + size*0.36} cy={h} r={6}/>
+      <circle cx={h - size*0.36} cy={h} r={6}/>
+    </g></svg>
+
   return null
 }
 
@@ -275,7 +300,7 @@ export default function App() {
   const effectsRef      = useRef([])
   const enemyBulletsRef = useRef([])
   const cannonShellsRef = useRef([])
-  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 })
+  const playerRef   = useRef({ x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0, orbActive: false, orbCount: 1, orbAngle: 0 })
   const rafRef      = useRef(null)
   const scoreRef    = useRef(0)
   const timeRef     = useRef(0)
@@ -495,6 +520,16 @@ export default function App() {
         lastShotRef.current = ts
       }
 
+      // Orb positions — computed once per frame, used for collision + drawing
+      const orbPositions = []
+      if (p.orbActive) {
+        p.orbAngle += ORB_SPEED
+        for (let i = 0; i < p.orbCount; i++) {
+          const angle = p.orbAngle + (i / p.orbCount) * Math.PI * 2
+          orbPositions.push({ x: p.x + Math.cos(angle) * ORB_ORBIT_R, y: p.y + Math.sin(angle) * ORB_ORBIT_R })
+        }
+      }
+
       // Right wing — fire homing missiles toward N nearest enemies
       if (p.rightWing && ts - p.rightWingLastShot >= WING_MISSILE_INT) {
         const wMx = p.x + WING_OFFSET
@@ -607,6 +642,24 @@ export default function App() {
         }
       }
 
+      // Orb — contact damage on enemies (cooldown per enemy)
+      for (let ei = 0; ei < enemiesRef.current.length; ei++) {
+        if (hitEnemies.has(ei)) continue
+        const e = enemiesRef.current[ei]
+        if (ghostInvincible(e)) continue
+        for (const orb of orbPositions) {
+          const odx = e.x - orb.x, ody = e.y - orb.y, osr = ORB_R + e.r
+          if (odx * odx + ody * ody < osr * osr) {
+            if (ts - (e.orbHitAt || 0) < ORB_HIT_INTERVAL) break
+            e.orbHitAt = ts
+            e.hp -= ORB_DAMAGE * (e.armored ? ARMOR_DMG_MULT : 1)
+            if (e.hp <= 0) hitEnemies.add(ei)
+            else pushHitEffect(effectsRef.current, e.x, e.y)
+            break
+          }
+        }
+      }
+
       // Laser — left wing locks onto nearest enemy
       let laserTargets = []
       if (p.leftWing) {
@@ -709,11 +762,15 @@ export default function App() {
 
       // Draw bullets (homing missiles in orange, regular in yellow)
       for (const b of bulletsRef.current)
-        drawCircle(ctx, b.x, b.y, b.r, b.homingTarget ? '#ff9f0a' : '#ffe600', b.homingTarget ? 14 : 10)
+        drawCircle(ctx, b.x, b.y, b.r, b.homingTarget ? '#00e5ff' : '#ffffff', b.homingTarget ? 14 : 10)
 
       // Draw cannon shells (green)
       for (const shell of cannonShellsRef.current)
         drawCircle(ctx, shell.x, shell.y, 5, '#1a6fff', 14)
+
+      // Draw orbs
+      for (const orb of orbPositions)
+        drawCircle(ctx, orb.x, orb.y, ORB_R, '#ffe600', 18)
 
       // Move & draw enemies
       enemiesRef.current = enemiesRef.current.filter(e =>
@@ -783,6 +840,18 @@ export default function App() {
       }
       ctx.textBaseline = 'alphabetic'
 
+      // Orb vs enemy missiles — destroy on contact
+      enemyBulletsRef.current = enemyBulletsRef.current.filter(m => {
+        for (const orb of orbPositions) {
+          const mdx = m.x - orb.x, mdy = m.y - orb.y, msr = ORB_R + m.r
+          if (mdx * mdx + mdy * mdy < msr * msr) {
+            pushHitEffect(effectsRef.current, m.x, m.y)
+            return false
+          }
+        }
+        return true
+      })
+
       // Enemy missiles — move, draw, check player collision (shield does not block)
       enemyBulletsRef.current = enemyBulletsRef.current.filter(m =>
         m.y < GAME_H + m.r && m.y > -m.r && m.x > -m.r && m.x < GAME_W + m.r
@@ -790,7 +859,7 @@ export default function App() {
       for (const m of enemyBulletsRef.current) {
         m.x += m.vx; m.y += m.vy
         if (collides(m, p) && invincibleRef.current <= 0) { gameOverRef.current = true; setGameOver(true); return }
-        drawCircle(ctx, m.x, m.y, m.r, SHOOTER_COLOR, 14)
+        drawCircle(ctx, m.x, m.y, m.r, SHOOTER_MISSILE_COLOR, 14)
       }
 
       // Draw laser beams — left wing toward N nearest targets (or straight up if no enemy)
@@ -809,19 +878,9 @@ export default function App() {
 
       // Draw player
       if (invincibleRef.current > 0) invincibleRef.current--
+      if (invincibleRef.current > 0) ctx.globalAlpha = 0.2 + 0.15 * Math.sin(timeRef.current * 0.25)
       drawCircle(ctx, p.x, p.y, p.r, '#00e5ff', 8)
-      if (invincibleRef.current > 0) {
-        const progress = invincibleRef.current / 90
-        const pulse = 0.5 + 0.5 * Math.sin(timeRef.current * 0.25)
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r + 7 + pulse * 5, 0, Math.PI * 2)
-        ctx.strokeStyle = `rgba(0,229,255,${progress * (0.3 + pulse * 0.5)})`
-        ctx.shadowColor = '#00e5ff'
-        ctx.shadowBlur = 16
-        ctx.lineWidth = 2
-        ctx.stroke()
-        ctx.shadowBlur = 0
-      }
+      ctx.globalAlpha = 1
 
       // Cannon indicator — small green dot at player top-center
       if (p.cannonActive)
@@ -831,15 +890,18 @@ export default function App() {
       if (p.leftWing)  drawCircle(ctx, p.x - WING_OFFSET, wingY, WING_R, '#ff6060', 10)
       if (p.rightWing) drawCircle(ctx, p.x + WING_OFFSET, wingY, WING_R, '#ff6060', 10)
 
-      // Draw shield
+      // Draw shield — one ring per power level (ceil), spaced 5px apart
       if (p.shieldActive) {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.shieldR, 0, Math.PI * 2)
+        const ringCount = Math.ceil(p.shieldPower)
         ctx.strokeStyle = 'rgba(0,229,255,0.5)'
         ctx.shadowColor = '#00e5ff'
         ctx.shadowBlur  = 14
         ctx.lineWidth   = 2
-        ctx.stroke()
+        for (let i = 0; i < ringCount; i++) {
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, p.shieldR + i * 5, 0, Math.PI * 2)
+          ctx.stroke()
+        }
         ctx.shadowBlur  = 0
       }
 
@@ -917,7 +979,7 @@ export default function App() {
     invincibleRef.current      = 0
     setStageAnn(0)
     setWaveWarning(false)
-    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0 }
+    playerRef.current   = { x: GAME_W / 2, y: GAME_H - 80, r: PLAYER_R, shieldActive: false, shieldR: 0, shieldPower: 0, leftWing: false, rightWing: false, leftWingLevel: 0, rightWingLevel: 0, laserDps: 0, leftWingLaserCount: 1, rightWingPower: 0, rightWingLastShot: 0, rightWingMissileCount: 1, cannonActive: false, cannonPower: CANNON_BASE_POWER, cannonRadius: CANNON_BASE_RADIUS, cannonLastShot: 0, orbActive: false, orbCount: 1, orbAngle: 0 }
     xpRef.current       = { current: 0, level: 1, max: 4 }
     statsRef.current    = { ...DEFAULT_STATS }
     setIsNewRecord(false)
