@@ -23,6 +23,13 @@ const SPAWN_INTERVAL    = 1100
 const SHOOTER_R         = 12
 const SHOOTER_SPEED     = 1.2
 const SHOOTER_COLOR     = '#30d158'  // neon green
+const SPLITTER_R        = 20
+const SPLITTER_COLOR    = '#ff6b81'  // pink-red
+const SPLIT_R           = 8
+const SPLIT_COLOR       = '#ff9faa'  // light pink (sub-enemy)
+const GHOST_COLOR       = '#a78bfa'  // soft purple
+const GHOST_CYCLE       = 180        // frames per invincibility cycle (3s)
+const GHOST_INVINCIBLE_AT = 120      // frame within cycle where invincibility starts (2s on, 1s invincible)
 const MISSILE_R         = 5
 const MISSILE_SPEED     = 4
 const MISSILE_INTERVAL  = 2500       // ms between shots
@@ -77,6 +84,8 @@ function getNearestEnemies(enemies, ox, oy, count, skipSet) {
   }
   return results
 }
+
+const ghostInvincible = e => e.ghost && (e.ghostTick % GHOST_CYCLE) >= GHOST_INVINCIBLE_AT
 
 function pushHitEffect(effects, x, y) {
   effects.push({ kind: 'hit', x, y, life: 1, decay: 0.18 })
@@ -326,19 +335,22 @@ export default function App() {
     if (!started || gameOver || paused) return
 
     const makeEnemy = (s) => {
-      const rand    = Math.random()
-      const fast    = rand < 0.25
-      const shooter = !fast && rand >= 0.90
-      const homing  = !fast && !shooter && rand >= 0.85
+      const rand     = Math.random()
+      const fast     = rand < 0.25
+      const shooter  = !fast && rand >= 0.90
+      const homing   = !fast && !shooter && rand >= 0.85
       const speedScale = 1 + (s - 1) * 0.025
-      const maxHp = 1 + Math.floor(s / 4)
-      const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : ENEMY_R
+      const baseHp = 1 + Math.floor(s / 4)
+      const splitter = !fast && !shooter && !homing && rand >= 0.80 && baseHp >= 2
+      const ghost    = !fast && !shooter && !homing && !splitter && rand >= 0.75 && s >= 7
+      const maxHp = splitter ? baseHp + 1 : baseHp
+      const r = fast ? ENEMY_R - 4 : shooter ? SHOOTER_R : splitter ? SPLITTER_R : ENEMY_R
       return {
-        x: ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2), y: -ENEMY_R, r,
-        speed: (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : ENEMY_SPEED) * speedScale,
-        color: shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : '#ff2d55',
+        x: ENEMY_R + Math.random() * (GAME_W - ENEMY_R * 2), y: -r, r,
+        speed: (fast ? FAST_SPEED : shooter ? SHOOTER_SPEED : homing ? HOMING_SPEED : splitter ? ENEMY_SPEED * 0.8 : ENEMY_SPEED) * speedScale,
+        color: shooter ? SHOOTER_COLOR : homing ? '#bf5af2' : fast ? '#ff9f0a' : splitter ? SPLITTER_COLOR : ghost ? GHOST_COLOR : '#ff2d55',
         font:  `${Math.round(r * 0.9)}px monospace`,
-        homing, shooter, lastShot: 0, hp: maxHp, maxHp,
+        homing, shooter, splitter, ghost, ghostTick: 0, lastShot: 0, hp: maxHp, maxHp,
       }
     }
 
@@ -540,7 +552,6 @@ export default function App() {
       // Bullet-enemy collisions (HP-aware)
       const hitEnemies = new Set()
       const hitBullets = new Set()
-
       // Cannon AoE damage
       for (const exp of cannonExplosions) {
         effectsRef.current.push({ kind: 'cannonBlast', x: exp.x, y: exp.y, life: 1, decay: 0.04, radius: p.cannonRadius })
@@ -549,6 +560,7 @@ export default function App() {
         for (let ei = 0; ei < enemiesRef.current.length; ei++) {
           if (hitEnemies.has(ei)) continue
           const e = enemiesRef.current[ei]
+          if (ghostInvincible(e)) continue
           const ed = Math.hypot(e.x - exp.x, e.y - exp.y)
           if (ed < p.cannonRadius) {
             const dmg = ed < p.cannonRadius * 0.4 ? p.cannonPower : p.cannonPower * (1 - ed / p.cannonRadius)
@@ -562,6 +574,7 @@ export default function App() {
       for (let ei = 0; ei < enemiesRef.current.length; ei++) {
         if (hitEnemies.has(ei)) continue
         const e = enemiesRef.current[ei]
+        if (ghostInvincible(e)) continue
         for (let bi = 0; bi < bulletsRef.current.length; bi++) {
           if (hitBullets.has(bi)) continue
           if (collides(e, bulletsRef.current[bi])) {
@@ -580,6 +593,7 @@ export default function App() {
         for (let ei = 0; ei < enemiesRef.current.length; ei++) {
           if (hitEnemies.has(ei)) continue
           const e = enemiesRef.current[ei]
+          if (ghostInvincible(e)) continue
           if (!collides(e, shield)) continue
           if (ts - (e.shieldHitAt || 0) < 600) continue
           e.shieldHitAt = ts
@@ -596,6 +610,7 @@ export default function App() {
         const count = p.leftWingLaserCount || 1
         laserTargets = getNearestEnemies(enemiesRef.current, lwx, wingY, count, hitEnemies)
         for (const t of laserTargets) {
+          if (ghostInvincible(t.e)) continue
           t.e.hp -= p.laserDps / 60
           if (t.e.hp <= 0) hitEnemies.add(t.ei)
         }
@@ -609,7 +624,7 @@ export default function App() {
           if (hitEnemies.has(ei)) continue
           const e = enemiesRef.current[ei]
           const ddx = e.x - ef.x, ddy = e.y - ef.y
-          if (ddx * ddx + ddy * ddy < r2) {
+          if (ddx * ddx + ddy * ddy < r2 && !ghostInvincible(e)) {
             e.hp -= ef.life * 0.04 * p.cannonPower
             if (e.hp <= 0) hitEnemies.add(ei)
           }
@@ -617,14 +632,27 @@ export default function App() {
       }
 
       const kills = hitEnemies.size
+      const splitSpawns = []
       enemiesRef.current.forEach((e, i) => {
         if (!hitEnemies.has(i)) return
         for (let n = 0; n < 6; n++)
           effectsRef.current.push({ kind: 'particle', x: e.x, y: e.y, life: 1, angle: (n / 6) * Math.PI * 2 })
         effectsRef.current.push({ kind: 'ring', x: e.x, y: e.y, life: 1 })
         effectsRef.current.push({ kind: 'text', x: e.x, y: e.y, life: 1 })
+        if (e.splitter) {
+          for (let n = 0; n < e.maxHp; n++) {
+            const angle = (n / e.maxHp) * Math.PI * 2
+            splitSpawns.push({
+              x: e.x + Math.cos(angle) * e.r, y: e.y + Math.sin(angle) * e.r,
+              r: SPLIT_R, speed: ENEMY_SPEED * 1.4, color: SPLIT_COLOR,
+              font: `${Math.round(SPLIT_R * 0.9)}px monospace`,
+              homing: false, shooter: false, splitter: false, ghost: false, ghostTick: 0, lastShot: 0,
+              hp: 1, maxHp: 1, isWave: e.isWave,
+            })
+          }
+        }
       })
-      enemiesRef.current = enemiesRef.current.filter((_, i) => !hitEnemies.has(i))
+      enemiesRef.current = [...enemiesRef.current.filter((_, i) => !hitEnemies.has(i)), ...splitSpawns]
       bulletsRef.current = bulletsRef.current.filter((_, i) => !hitBullets.has(i))
 
       // Wave completion — all wave enemies killed or passed off-screen
@@ -712,8 +740,13 @@ export default function App() {
             vy: (dy / dist) * MISSILE_SPEED,
           })
         }
-        if (collides(e, p) && invincibleRef.current <= 0) { gameOverRef.current = true; setGameOver(true); return }
-        drawCircle(ctx, e.x, e.y, e.r, e.color, 6)
+        if (e.ghost) e.ghostTick++
+        const invincible = ghostInvincible(e)
+        if (invincible) ctx.globalAlpha = 0.2 + 0.15 * Math.sin(e.ghostTick * 0.25)
+        const hitPlayer = !invincible && collides(e, p) && invincibleRef.current <= 0
+        drawCircle(ctx, e.x, e.y, e.r, e.color, invincible ? 16 : 6)
+        ctx.globalAlpha = 1
+        if (hitPlayer) { gameOverRef.current = true; setGameOver(true); return }
         // HP arc gauge — curved inside bottom of enemy circle
         {
           const ratio = Math.max(0, Math.min(1, e.hp / e.maxHp))
