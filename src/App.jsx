@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { submitScore, fetchLeaderboard } from './firebase'
 
 // Fixed logical resolution — 9:16 (standard mobile)
 const GAME_W = 390
@@ -291,6 +292,11 @@ export default function App() {
   const [highScore,    setHighScore]   = useState(() => parseInt(localStorage.getItem('voidHighScore') || '0'))
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
+  const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
+  const [nicknameInput, setNicknameInput] = useState('')
+  const [lbTab,    setLbTab]    = useState('today')
+  const [lbEntries, setLbEntries] = useState([])
+  const [lbLoading, setLbLoading] = useState(false)
 
   const paused = cards.length > 0
 
@@ -949,7 +955,33 @@ export default function App() {
       setHighScore(scoreRef.current)
       setIsNewRecord(true)
     }
+    if (nickname && scoreRef.current > 0) {
+      submitScore({ nickname, score: scoreRef.current, kills, time: secs, stage: stageRef.current })
+    }
   }, [gameOver])
+
+  const confirmNickname = () => {
+    const n = nicknameInput.trim() || 'PLAYER'
+    localStorage.setItem('voidNickname', n)
+    setNickname(n)
+  }
+
+  const loadLeaderboard = async (tab) => {
+    setLbLoading(true)
+    try {
+      const entries = await fetchLeaderboard(tab)
+      setLbEntries(entries)
+      setLbTab(tab)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLbLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!started) loadLeaderboard('today')
+  }, [started])
 
   const selectCard = (upgrade) => {
     upgrade.apply(statsRef.current, playerRef.current)
@@ -974,7 +1006,7 @@ export default function App() {
     advanceStageRef.current    = null
     waveAllSpawnedRef.current  = false
     waveRemainingRef.current   = 0
-    phaseStartRef.current      = Date.now()
+    phaseStartRef.current      = 0
     targetXRef.current         = GAME_W / 2
     invincibleRef.current      = 0
     setStageAnn(0)
@@ -1006,18 +1038,79 @@ export default function App() {
 
         {/* Start screen */}
         {!started && (
-          <div style={{ ...overlay, background: '#0a0a0f', gap: 32 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div style={{ ...overlay, background: '#0a0a0f', gap: 18, padding: '28px 20px', overflowY: 'auto', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
               <div style={{ ...mono, color: '#00e5ff', fontSize: 36, letterSpacing: 6, textShadow: '0 0 20px #00e5ff' }}>VOID</div>
               <div style={{ ...mono, color: '#b388ff', fontSize: 13, letterSpacing: 3, textShadow: '0 0 10px #b388ff' }}>SURVIVOR</div>
             </div>
-            <button onClick={() => setStarted(true)} style={{
-              background: 'transparent', border: '1px solid #00e5ff',
-              color: '#00e5ff', ...mono, fontSize: 16, letterSpacing: 4,
-              padding: '14px 40px', borderRadius: 6, cursor: 'pointer',
-              textShadow: '0 0 10px #00e5ff', boxShadow: '0 0 16px rgba(0,229,255,0.2)',
-              WebkitTapHighlightColor: 'transparent',
-            }}>START</button>
+
+            {!nickname ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, width: '100%' }}>
+                <div style={{ ...mono, color: '#555', fontSize: 11, letterSpacing: 2 }}>ENTER NICKNAME</div>
+                <input
+                  value={nicknameInput}
+                  onChange={e => setNicknameInput(e.target.value.toUpperCase().slice(0, 10))}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmNickname() }}
+                  maxLength={10}
+                  autoFocus
+                  placeholder="PLAYER"
+                  style={{ background: '#111', border: '1px solid #444', color: '#fff', ...mono, fontSize: 18, textAlign: 'center', padding: '10px 16px', borderRadius: 6, width: '60%', letterSpacing: 3, outline: 'none' }}
+                />
+                <button onClick={confirmNickname} style={{
+                  background: 'transparent', border: '1px solid #00e5ff', color: '#00e5ff',
+                  ...mono, fontSize: 13, letterSpacing: 4, padding: '10px 28px', borderRadius: 6, cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
+                }}>CONFIRM</button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ ...mono, color: '#444', fontSize: 11, letterSpacing: 2 }}>PLAYER</div>
+                  <div style={{ ...mono, color: '#00e5ff', fontSize: 15, letterSpacing: 3 }}>{nickname}</div>
+                  <button onClick={() => { setNickname(''); setNicknameInput('') }} style={{ background: 'none', border: 'none', color: '#444', fontSize: 11, cursor: 'pointer', ...mono, padding: 0 }}>✕</button>
+                </div>
+                <button onClick={() => setStarted(true)} style={{
+                  background: 'transparent', border: '1px solid #00e5ff',
+                  color: '#00e5ff', ...mono, fontSize: 16, letterSpacing: 4,
+                  padding: '14px 40px', borderRadius: 6, cursor: 'pointer',
+                  textShadow: '0 0 10px #00e5ff', boxShadow: '0 0 16px rgba(0,229,255,0.2)',
+                  WebkitTapHighlightColor: 'transparent',
+                }}>START</button>
+              </div>
+            )}
+
+            {/* Leaderboard */}
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center', marginBottom: 10 }}>
+                {['today', 'week', 'all'].map(tab => (
+                  <button key={tab} onClick={() => loadLeaderboard(tab)} style={{
+                    background: lbTab === tab ? 'rgba(179,136,255,0.12)' : 'transparent',
+                    border: `1px solid ${lbTab === tab ? '#b388ff' : '#2a2a3a'}`,
+                    color: lbTab === tab ? '#b388ff' : '#444',
+                    ...mono, fontSize: 10, letterSpacing: 2,
+                    padding: '5px 10px', borderRadius: 4, cursor: 'pointer',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}>
+                    {tab === 'today' ? 'TODAY' : tab === 'week' ? 'WEEK' : 'ALL TIME'}
+                  </button>
+                ))}
+              </div>
+              {lbLoading ? (
+                <div style={{ ...mono, color: '#333', fontSize: 11, textAlign: 'center', letterSpacing: 2 }}>LOADING...</div>
+              ) : lbEntries.length === 0 ? (
+                <div style={{ ...mono, color: '#333', fontSize: 11, textAlign: 'center', letterSpacing: 2 }}>NO RECORDS YET</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {lbEntries.map((e, i) => (
+                    <div key={`${e.nickname}-${e.score}-${i}`} style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: i === 0 ? 'rgba(255,230,0,0.04)' : 'transparent', borderRadius: 4 }}>
+                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : i < 3 ? '#888' : '#333', fontSize: 11, width: 18 }}>{i + 1}</span>
+                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : '#888', fontSize: 12, flex: 1, marginLeft: 6 }}>{e.nickname}</span>
+                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : '#00e5ff', fontSize: 13 }}>{e.score}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1089,14 +1182,24 @@ export default function App() {
                   <div style={{ ...mono, color: '#aaa', fontSize: 15 }}>{finalStats.kills}</div>
                 </div>
               </div>
-              <button onClick={restart} style={{
-                marginTop: 10, background: '#00e5ff', color: '#0a0a0f',
-                border: 'none', padding: '14px 36px', ...mono,
-                fontSize: 17, cursor: 'pointer', borderRadius: 6,
-                WebkitTapHighlightColor: 'transparent',
-              }}>
-                RESTART
-              </button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                <button onClick={restart} style={{
+                  background: '#00e5ff', color: '#0a0a0f',
+                  border: 'none', padding: '14px 28px', ...mono,
+                  fontSize: 17, cursor: 'pointer', borderRadius: 6,
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                  RESTART
+                </button>
+                <button onClick={() => { restart(); setStarted(false) }} style={{
+                  background: 'transparent', color: '#555',
+                  border: '1px solid #333', padding: '14px 20px', ...mono,
+                  fontSize: 14, cursor: 'pointer', borderRadius: 6,
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                  MENU
+                </button>
+              </div>
             </div>
           )
         })()}
