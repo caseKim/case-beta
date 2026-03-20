@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app'
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore'
 
 const app = initializeApp({
@@ -10,18 +11,25 @@ const app = initializeApp({
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 })
 
+const auth = getAuth(app)
 const db = getFirestore(app)
+const scoresRef = collection(db, 'scores')
 
-export async function submitScore({ nickname, score, kills, time, stage }) {
-  return addDoc(collection(db, 'scores'), {
-    nickname, score, kills, time, stage,
-    ts: serverTimestamp(),
+export function ensureAuth() {
+  return new Promise((resolve) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub()
+      if (user) resolve(user.uid)
+      else signInAnonymously(auth).then(({ user }) => resolve(user.uid))
+    })
   })
 }
 
-const scoresRef = collection(db, 'scores')
+export async function submitScore({ uid, nickname, score, kills, time, stage }) {
+  return addDoc(scoresRef, { uid, nickname, score, kills, time, stage, ts: serverTimestamp() })
+}
 
-export async function fetchLeaderboard(tab, nickname) {
+export async function fetchLeaderboard(tab, uid) {
   let q
   if (tab === 'today') {
     const start = new Date()
@@ -38,18 +46,19 @@ export async function fetchLeaderboard(tab, nickname) {
   const snap = await getDocs(q)
   const raw = snap.docs.map(d => d.data())
 
-  // 닉네임별 최고점만 남기기
+  // uid 기준 중복 제거 (구버전 데이터는 nickname으로 fallback)
   const bestMap = new Map()
   for (const e of raw) {
-    if (!bestMap.has(e.nickname) || e.score > bestMap.get(e.nickname).score) {
-      bestMap.set(e.nickname, e)
+    const key = e.uid || e.nickname
+    if (!bestMap.has(key) || e.score > bestMap.get(key).score) {
+      bestMap.set(key, e)
     }
   }
   const ranked = [...bestMap.values()].sort((a, b) => b.score - a.score)
 
   const entries = ranked.slice(0, 10)
-  const myRank = nickname ? ranked.findIndex(e => e.nickname === nickname) + 1 : 0
-  const myEntry = nickname ? bestMap.get(nickname) ?? null : null
+  const myRank = uid ? ranked.findIndex(e => e.uid === uid) + 1 : 0
+  const myEntry = uid ? bestMap.get(uid) ?? null : null
 
   return { entries, myRank, myEntry }
 }

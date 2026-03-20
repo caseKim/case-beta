@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { submitScore, fetchLeaderboard } from './firebase'
+import { ensureAuth, submitScore, fetchLeaderboard } from './firebase'
 
 // Fixed logical resolution — 9:16 (standard mobile)
 const GAME_W = 390
@@ -363,6 +363,7 @@ export default function App() {
   const [highScore,    setHighScore]   = useState(() => parseInt(localStorage.getItem('voidHighScore') || '0'))
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
+  const [uid,          setUid]         = useState('')
   const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
   const [nicknameInput, setNicknameInput] = useState(() => localStorage.getItem('voidNickname') ? '' : makeDefaultNickname())
   const [lbTab,    setLbTab]    = useState('today')
@@ -1028,8 +1029,8 @@ export default function App() {
       setHighScore(scoreRef.current)
       setIsNewRecord(true)
     }
-    if (nickname && scoreRef.current > 0) {
-      submitScore({ nickname, score: scoreRef.current, kills, time: secs, stage: stageRef.current })
+    if (uid && nickname && scoreRef.current > 0) {
+      submitScore({ uid, nickname, score: scoreRef.current, kills, time: secs, stage: stageRef.current })
     }
   }, [gameOver])
 
@@ -1042,7 +1043,7 @@ export default function App() {
   const loadLeaderboard = async (tab) => {
     setLbLoading(true)
     try {
-      const { entries, myRank, myEntry } = await fetchLeaderboard(tab, nickname)
+      const { entries, myRank, myEntry } = await fetchLeaderboard(tab, uid)
       setLbEntries(entries)
       setLbMyRank(myRank)
       setLbMyEntry(myEntry)
@@ -1053,6 +1054,8 @@ export default function App() {
       setLbLoading(false)
     }
   }
+
+  useEffect(() => { ensureAuth().then(setUid) }, [])
 
   useEffect(() => {
     if (!started) loadLeaderboard('today')
@@ -1177,7 +1180,7 @@ export default function App() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {lbEntries.map((e, i) => {
-                    const isMe = e.nickname === nickname
+                    const isMe = uid ? e.uid === uid : e.nickname === nickname
                     return (
                       <div key={`${e.nickname}-${e.score}-${i}`} style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: isMe ? 'rgba(0,229,255,0.07)' : i === 0 ? 'rgba(255,230,0,0.04)' : 'transparent', borderRadius: 4, border: isMe ? '1px solid rgba(0,229,255,0.2)' : '1px solid transparent' }}>
                         <span style={{ ...mono, color: i === 0 ? '#ffe600' : i < 3 ? '#888' : '#333', fontSize: 11, width: 18 }}>{i + 1}</span>
