@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Background -->
+  <rect width="32" height="32" rx="6" fill="#0a0a1a"/>
+  <!-- Ship body -->
+  <polygon points="16,4 22,24 16,20 10,24" fill="#60a5fa"/>
+  <!-- Ship cockpit -->
+  <ellipse cx="16" cy="13" rx="3" ry="4" fill="#93c5fd"/>
+  <!-- Engine glow -->
+  <ellipse cx="16" cy="23" rx="3" ry="2" fill="#f97316" opacity="0.9"/>
+  <ellipse cx="16" cy="24" rx="2" ry="1.5" fill="#fbbf24"/>
+  <!-- Wing left -->
+  <polygon points="10,24 6,28 10,20" fill="#3b82f6"/>
+  <!-- Wing right -->
+  <polygon points="22,24 26,28 22,20" fill="#3b82f6"/>
+  <!-- Stars -->
+  <circle cx="4" cy="6" r="0.8" fill="white" opacity="0.7"/>
+  <circle cx="28" cy="10" r="0.8" fill="white" opacity="0.7"/>
+  <circle cx="26" cy="4" r="0.5" fill="white" opacity="0.5"/>
+  <circle cx="5" cy="18" r="0.5" fill="white" opacity="0.5"/>
+</svg>
