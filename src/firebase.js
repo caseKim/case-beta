@@ -21,20 +21,35 @@ export async function submitScore({ nickname, score, kills, time, stage }) {
 
 const scoresRef = collection(db, 'scores')
 
-export async function fetchLeaderboard(tab) {
+export async function fetchLeaderboard(tab, nickname) {
   let q
   if (tab === 'today') {
     const start = new Date()
     start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), orderBy('score', 'desc'), limit(10))
+    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(500))
   } else if (tab === 'week') {
     const start = new Date()
     start.setDate(start.getDate() - 7)
     start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), orderBy('score', 'desc'), limit(10))
+    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(500))
   } else {
-    q = query(scoresRef, orderBy('score', 'desc'), limit(10))
+    q = query(scoresRef, orderBy('score', 'desc'), limit(500))
   }
   const snap = await getDocs(q)
-  return snap.docs.map(d => d.data())
+  const raw = snap.docs.map(d => d.data())
+
+  // 닉네임별 최고점만 남기기
+  const bestMap = new Map()
+  for (const e of raw) {
+    if (!bestMap.has(e.nickname) || e.score > bestMap.get(e.nickname).score) {
+      bestMap.set(e.nickname, e)
+    }
+  }
+  const ranked = [...bestMap.values()].sort((a, b) => b.score - a.score)
+
+  const entries = ranked.slice(0, 10)
+  const myRank = nickname ? ranked.findIndex(e => e.nickname === nickname) + 1 : 0
+  const myEntry = nickname ? bestMap.get(nickname) ?? null : null
+
+  return { entries, myRank, myEntry }
 }

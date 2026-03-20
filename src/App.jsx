@@ -296,6 +296,8 @@ export default function App() {
   const [nicknameInput, setNicknameInput] = useState('')
   const [lbTab,    setLbTab]    = useState('today')
   const [lbEntries, setLbEntries] = useState([])
+  const [lbMyRank,  setLbMyRank]  = useState(0)
+  const [lbMyEntry, setLbMyEntry] = useState(null)
   const [lbLoading, setLbLoading] = useState(false)
 
   const paused = cards.length > 0
@@ -969,8 +971,10 @@ export default function App() {
   const loadLeaderboard = async (tab) => {
     setLbLoading(true)
     try {
-      const entries = await fetchLeaderboard(tab)
+      const { entries, myRank, myEntry } = await fetchLeaderboard(tab, nickname)
       setLbEntries(entries)
+      setLbMyRank(myRank)
+      setLbMyEntry(myEntry)
       setLbTab(tab)
     } catch (e) {
       console.error(e)
@@ -1101,13 +1105,26 @@ export default function App() {
                 <div style={{ ...mono, color: '#333', fontSize: 11, textAlign: 'center', letterSpacing: 2 }}>NO RECORDS YET</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  {lbEntries.map((e, i) => (
-                    <div key={`${e.nickname}-${e.score}-${i}`} style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: i === 0 ? 'rgba(255,230,0,0.04)' : 'transparent', borderRadius: 4 }}>
-                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : i < 3 ? '#888' : '#333', fontSize: 11, width: 18 }}>{i + 1}</span>
-                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : '#888', fontSize: 12, flex: 1, marginLeft: 6 }}>{e.nickname}</span>
-                      <span style={{ ...mono, color: i === 0 ? '#ffe600' : '#00e5ff', fontSize: 13 }}>{e.score}</span>
-                    </div>
-                  ))}
+                  {lbEntries.map((e, i) => {
+                    const isMe = e.nickname === nickname
+                    return (
+                      <div key={`${e.nickname}-${e.score}-${i}`} style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: isMe ? 'rgba(0,229,255,0.07)' : i === 0 ? 'rgba(255,230,0,0.04)' : 'transparent', borderRadius: 4, border: isMe ? '1px solid rgba(0,229,255,0.2)' : '1px solid transparent' }}>
+                        <span style={{ ...mono, color: i === 0 ? '#ffe600' : i < 3 ? '#888' : '#333', fontSize: 11, width: 18 }}>{i + 1}</span>
+                        <span style={{ ...mono, color: isMe ? '#00e5ff' : i === 0 ? '#ffe600' : '#888', fontSize: 12, flex: 1, marginLeft: 6 }}>{e.nickname}</span>
+                        <span style={{ ...mono, color: isMe ? '#00e5ff' : i === 0 ? '#ffe600' : '#00e5ff', fontSize: 13 }}>{e.score}</span>
+                      </div>
+                    )
+                  })}
+                  {lbMyRank > 10 && lbMyEntry && (
+                    <>
+                      <div style={{ ...mono, color: '#2a2a3a', fontSize: 10, textAlign: 'center', letterSpacing: 1, padding: '2px 0' }}>···</div>
+                      <div style={{ display: 'flex', alignItems: 'center', padding: '5px 8px', background: 'rgba(0,229,255,0.07)', borderRadius: 4, border: '1px solid rgba(0,229,255,0.2)' }}>
+                        <span style={{ ...mono, color: '#444', fontSize: 11, width: 18 }}>{lbMyRank}</span>
+                        <span style={{ ...mono, color: '#00e5ff', fontSize: 12, flex: 1, marginLeft: 6 }}>{lbMyEntry.nickname}</span>
+                        <span style={{ ...mono, color: '#00e5ff', fontSize: 13 }}>{lbMyEntry.score}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
