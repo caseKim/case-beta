@@ -49,6 +49,77 @@ const ORB_SPEED        = 0.045  // radians per frame
 const ORB_DAMAGE       = 1.5    // damage per hit
 const ORB_HIT_INTERVAL = 800    // ms cooldown per enemy
 const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
+
+const NICKNAME_ADJS = [
+  'VOID','NEON','DARK','IRON','SWIFT','COLD','DEAD','LOST','WILD','PALE',
+  'GRIM','ROGUE','CYBER','SOLAR','LUNAR','ASTRAL','ATOMIC','LASER','ULTRA','HYPER',
+  'ALPHA','OMEGA','SIGMA','DELTA','GAMMA','FROZEN','HOLLOW','BROKEN','SILENT','FIERCE',
+  'LETHAL','SAVAGE','BRUTAL','TOXIC','CHROME','SCARLET','CRIMSON','COBALT','AMBER','ONYX',
+  'AZURE','GOLDEN','SILVER','BRONZE','TITAN','STELLAR','COSMIC','PHANTOM','SHADOW','GHOST',
+  'STORM','FROST','ETERNAL','MORTAL','PRIMAL','ANCIENT','FATAL','DREAD','BLEAK','WARPED',
+  'NOVA','FLUX','SURGE','SHOCK','VOLT','KEEN','VENOM','CHAOS','HAVOC','RUINED',
+  'FALLEN','STARK','SCORCHED','WASTED','DRAINED','ALERT','RAPID','DENSE','SOLID','VAST',
+  'MASSIVE','MICRO','NANO','QUANTUM','DIGITAL','HYBRID','PRIME','APEX','META','DIVINE',
+  'INFERNAL','BRIGHT','FAINT','GLOWING','MOLTEN','CRACKED','SHATTERED','FORGED','RAGING','CRAZED',
+  'SERENE','FERAL','SPECTRAL','ETHEREAL','NULL','STATIC','KINETIC','THERMAL','MAGNETIC','ELECTRIC',
+  'FRACTAL','CURVED','INVERTED','PARALLEL','NEURAL','VIRAL','CRYPTIC','MYSTIC','ARCANE','SACRED',
+  'OBSIDIAN','TITANIUM','PLATINUM','CARBON','CYAN','TEAL','MAGENTA','DOOMED','EXILED','FRACTURED',
+  'CORRUPTED','TAINTED','DAMNED','DESOLATE','BLAZING','SUPREME','PHOTONIC','SONIC','IONIC','NEUTRON',
+  'GALACTIC','ZENITH','VORTEX','INDIGO','VIOLET','SAPPHIRE','RUBY','EMERALD','JADE','IVORY',
+  'BURNING','SHINING','DRIFTING','SMASHED','TENSE','RIGID','SHARP','BLUNT','CLEAN','PURE',
+  'CRISP','COOL','WARM','ICED','SMOKY','SPARSE','THICK','SOFT','HARD','LOUD',
+  'FAST','SLOW','HIGH','WIDE','NARROW','HUGE','TINY','BOLD','PROUD','BRAVE',
+  'FREE','BOUND','OPEN','SEALED','OLD','YOUNG','FRESH','IDLE','ACTIVE','PRIMED',
+  'CHARGED','LOADED','EMPTY','FULL','CLEAR','FOGGY','DIM','VIVID','STRONG','WEAK',
+  'BINARY','DUAL','LONE','LAST','FINAL','ULTIMATE','BLIGHTED','FORSAKEN','FRENZIED','DOMINANT',
+  'SEARING','RUTHLESS','CURSED','BLESSED','VEILED','TWISTED','HUSHED','ERASED','MASKED','STEALTHY',
+  'MIRAGE','WIRED','SUBZERO','UNHOLY','FUELED','VISCOUS','SUNKEN','ORBITAL','BENDING','LIMINAL',
+  'ABYSSAL','HEXED','DUSK','DAWN','TWILIGHT','APOGEE','MIDNIGHT','UMBRAL','ASTRO','SOLARIS',
+  'POLAR','BRINE','ASHEN','SHROUDED','BARREN','VACANT','ADRIFT','SABLE','ARGENT','AUREATE',
+  'MURKY','OPAQUE','RADIANT','LUCENT','INCENDIARY','SCORCHING','SHATTERING','CRUSHING','PIERCING','SLICING',
+  'WARBLING','HOWLING','SCREAMING','MUTED','BOOMING','CRACKLING','HUMMING','BUZZING','WHIRRING','PULSING',
+  'WRITHING','COILING','STRIKING','LUNGING','DIVING','SOARING','PLUNGING','SPIRALING','ORBITING','IMPLODING',
+  'COLLAPSING','ERUPTING','IGNITING','DETONATING','FREEZING','MELTING','DISSOLVING','PHASING','SHIFTING','WARPING',
+]
+
+const NICKNAME_NOUNS = [
+  'WOLF','FOX','HAWK','EAGLE','SHARK','VIPER','COBRA','RAVEN','OWL','BEAR',
+  'LION','TIGER','PANTHER','LYNX','FALCON','OSPREY','CONDOR','PHOENIX','DRAGON','SERPENT',
+  'HYDRA','KRAKEN','TITAN','SPECTER','WRAITH','SHADE','REVENANT','PHANTOM','BANSHEE','GHOUL',
+  'STAR','SUN','MOON','COMET','METEOR','ASTEROID','PULSAR','QUASAR','NEBULA','NOVA',
+  'RIFT','GATE','PORTAL','NEXUS','CORE','SHELL','RING','BELT','CLOUD','VOID',
+  'BLADE','SWORD','LANCE','ARROW','BOLT','CANNON','GUN','RIFLE','SNIPER','SIEGE',
+  'SHIELD','ARMOR','HELM','AEGIS','BASTION','FORTRESS','BUNKER','TURRET','SENTRY','BULWARK',
+  'MATRIX','VECTOR','CIPHER','CODE','SIGNAL','PULSE','WAVE','FLUX','FIELD','FORCE',
+  'MASS','CHARGE','SPIN','ORBIT','CYCLE','PHASE','NODE','GRID','MESH','LINK',
+  'DRONE','MECH','UNIT','FRAME','HULL','PLATE','EDGE','POINT','CLAW','FANG',
+  'TALON','SPINE','THORN','BARB','SPIKE','HOOK','CHAIN','WIRE','GEAR','COIL',
+  'FIRE','ICE','STORM','THUNDER','LIGHTNING','WIND','SHADOW','LIGHT','DARK','FLAME',
+  'BLOOD','BONE','SKULL','SOUL','SPIRIT','MIND','WILL','FATE','DOOM','OMEN',
+  'KING','KNIGHT','ROOK','DUKE','LORD','COUNT','BARON','WARDEN','MARSHAL','SENTINEL',
+  'PILOT','GUNNER','SCOUT','RANGER','HUNTER','STALKER','ASSASSIN','REAPER','DRIFTER','RAIDER',
+  'FLARE','BURST','BLAST','BANG','BOOM','CRACK','SHATTER','RUPTURE','FRACTURE','BREACH',
+  'ZERO','PRIME','PIVOT','AXIS','POLE','PEAK','CREST','VERTEX','APEX','ZENITH',
+  'CROW','KITE','WREN','CRANE','HERON','IBIS','JAY','SWIFT','EGRET','KESTREL',
+  'ORCA','MARLIN','PIKE','BASS','MANTA','MORAY','LEECH','CRAB','MANTIS','HORNET',
+  'RUBY','ONYX','JADE','OPAL','PEARL','GARNET','TOPAZ','QUARTZ','FLINT','SHARD',
+  'ATLAS','ORION','LYRA','VEGA','RIGEL','SIRIUS','ALTAIR','DENEB','SPICA','ANTARES',
+  'DRIFT','WAKE','TIDE','CURRENT','FLOW','STREAM','ABYSS','DEPTH','TRENCH','SWELL',
+  'ECHO','TONE','CHORD','BEAT','HUM','TEMPO','CHIME','NOISE','STATIC','FEEDBACK',
+  'MARK','SEAL','RUNE','GLYPH','SIGIL','IMPRINT','KEY','LOCK','BRAND','STAMP',
+  'CRATER','CANYON','GORGE','CHASM','CLEFT','FAULT','FISSURE','CREVICE','SEAM','SCAR',
+  'TOWER','SPIRE','OBELISK','MONOLITH','PILLAR','ARCH','VAULT','DOME','SPEAR','SUMMIT',
+  'EMBER','SPARK','BLAZE','INFERNO','PYRE','BEACON','TORCH','CINDER','GLOW','ASH',
+  'QUBIT','SCALAR','TENSOR','QUARK','BOSON','PHOTON','MESON','LEPTON','PROTON','NEUTRINO',
+  'AGENT','PROXY','GHOST','CLONE','COPY','MIMIC','STAIN','REMNANT','RELIC','VESTIGE',
+  'ZEPHYR','SQUALL','GALE','TYPHOON','CYCLONE','VORTEX','MAELSTROM','TEMPEST','BLIZZARD','TSUNAMI',
+]
+
+const makeDefaultNickname = () => {
+  const adj  = NICKNAME_ADJS[Math.floor(Math.random() * NICKNAME_ADJS.length)]
+  const noun = NICKNAME_NOUNS[Math.floor(Math.random() * NICKNAME_NOUNS.length)]
+  return `${adj}_${noun}`
+}
 const SHOT_SPREAD    = 12 * (Math.PI / 180)  // radians between adjacent bullets
 const SHOT_SPREAD_SX = Math.sin(SHOT_SPREAD)
 const SHOT_SPREAD_CX = Math.cos(SHOT_SPREAD)
@@ -293,7 +364,7 @@ export default function App() {
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
   const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
-  const [nicknameInput, setNicknameInput] = useState('')
+  const [nicknameInput, setNicknameInput] = useState(() => localStorage.getItem('voidNickname') ? '' : makeDefaultNickname())
   const [lbTab,    setLbTab]    = useState('today')
   const [lbEntries, setLbEntries] = useState([])
   const [lbMyRank,  setLbMyRank]  = useState(0)
@@ -963,7 +1034,7 @@ export default function App() {
   }, [gameOver])
 
   const confirmNickname = () => {
-    const n = nicknameInput.trim() || 'PLAYER'
+    const n = nicknameInput.trim() || makeDefaultNickname()
     localStorage.setItem('voidNickname', n)
     setNickname(n)
   }
@@ -1053,9 +1124,9 @@ export default function App() {
                 <div style={{ ...mono, color: '#555', fontSize: 11, letterSpacing: 2 }}>ENTER NICKNAME</div>
                 <input
                   value={nicknameInput}
-                  onChange={e => setNicknameInput(e.target.value.toUpperCase().slice(0, 10))}
+                  onChange={e => setNicknameInput(e.target.value.toUpperCase().slice(0, 14))}
                   onKeyDown={e => { if (e.key === 'Enter') confirmNickname() }}
-                  maxLength={10}
+                  maxLength={14}
                   autoFocus
                   placeholder="PLAYER"
                   style={{ background: '#111', border: '1px solid #444', color: '#fff', ...mono, fontSize: 18, textAlign: 'center', padding: '10px 16px', borderRadius: 6, width: '60%', letterSpacing: 3, outline: 'none' }}
