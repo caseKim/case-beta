@@ -1439,6 +1439,23 @@ export default function App() {
                 }}>
                   RESTART
                 </button>
+                <button onClick={() => {
+                  const mins = String(Math.floor(finalStats.time / 60)).padStart(2, '0')
+                  const secs = String(finalStats.time % 60).padStart(2, '0')
+                  const text = `Void Survivor — Score: ${score} | ${mins}:${secs} survived | ${finalStats.kills} kills\nhttps://case-beta-kappa.vercel.app/`
+                  if (navigator.share) {
+                    navigator.share({ text })
+                  } else {
+                    navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'))
+                  }
+                }} style={{
+                  background: 'transparent', color: '#b388ff',
+                  border: '1px solid #3a2a5a', padding: '14px 20px', ...mono,
+                  fontSize: 14, cursor: 'pointer', borderRadius: 6,
+                  WebkitTapHighlightColor: 'transparent',
+                }}>
+                  SHARE
+                </button>
                 <button onClick={() => { restart(); setStarted(false) }} style={{
                   background: 'transparent', color: '#555',
                   border: '1px solid #333', padding: '14px 20px', ...mono,
