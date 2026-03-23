@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <!-- Background -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0f1035"/>
+      <stop offset="100%" stop-color="#050510"/>
+    </radialGradient>
+    <radialGradient id="engineGlow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="1"/>
+      <stop offset="60%" stop-color="#f97316" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#93c5fd" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="300" cy="300" r="300" fill="url(#bg)"/>
+
+  <!-- Stars (small) -->
+  <circle cx="80" cy="70" r="1.5" fill="white" opacity="0.6"/>
+  <circle cx="150" cy="120" r="1" fill="white" opacity="0.4"/>
+  <circle cx="500" cy="90" r="2" fill="white" opacity="0.7"/>
+  <circle cx="540" cy="170" r="1.2" fill="white" opacity="0.5"/>
+  <circle cx="60" cy="220" r="1.8" fill="white" opacity="0.5"/>
+  <circle cx="490" cy="250" r="1" fill="white" opacity="0.4"/>
+  <circle cx="110" cy="400" r="1.5" fill="white" opacity="0.6"/>
+  <circle cx="520" cy="420" r="1.2" fill="white" opacity="0.5"/>
+  <circle cx="70" cy="500" r="1" fill="white" opacity="0.4"/>
+  <circle cx="460" cy="510" r="1.8" fill="white" opacity="0.6"/>
+  <circle cx="200" cy="560" r="1" fill="white" opacity="0.3"/>
+  <circle cx="380" cy="550" r="1.5" fill="white" opacity="0.5"/>
+  <circle cx="320" cy="80" r="1" fill="white" opacity="0.4"/>
+  <circle cx="240" cy="140" r="1.2" fill="white" opacity="0.3"/>
+
+  <!-- Engine exhaust glow (bottom) -->
+  <ellipse cx="300" cy="470" rx="60" ry="30" fill="url(#engineGlow)" opacity="0.9"/>
+  <ellipse cx="300" cy="490" rx="35" ry="50" fill="#fb923c" opacity="0.15"/>
+
+  <!-- Engine flames -->
+  <ellipse cx="300" cy="460" rx="28" ry="18" fill="#fbbf24" filter="url(#glow)"/>
+  <ellipse cx="300" cy="465" rx="18" ry="12" fill="#fde68a"/>
+  <ellipse cx="300" cy="468" rx="10" ry="7" fill="white" opacity="0.8"/>
+
+  <!-- Left wing -->
+  <polygon points="200,380 80,460 130,320 220,340" fill="#1d4ed8"/>
+  <polygon points="200,380 80,460 130,320 220,340" fill="#2563eb" opacity="0.6"/>
+  <!-- Left wing accent -->
+  <line x1="180" y1="350" x2="100" y2="440" stroke="#60a5fa" stroke-width="2" opacity="0.7"/>
+
+  <!-- Right wing -->
+  <polygon points="400,380 520,460 470,320 380,340" fill="#1d4ed8"/>
+  <polygon points="400,380 520,460 470,320 380,340" fill="#2563eb" opacity="0.6"/>
+  <!-- Right wing accent -->
+  <line x1="420" y1="350" x2="500" y2="440" stroke="#60a5fa" stroke-width="2" opacity="0.7"/>
+
+  <!-- Ship body -->
+  <polygon points="300,100 380,420 300,380 220,420" fill="#1e40af"/>
+  <polygon points="300,100 380,420 300,380 220,420" fill="#3b82f6" opacity="0.5"/>
+
+  <!-- Body center stripe -->
+  <polygon points="300,120 318,400 300,385 282,400" fill="#60a5fa" opacity="0.4"/>
+
+  <!-- Cockpit outer -->
+  <ellipse cx="300" cy="230" rx="52" ry="70" fill="#1e3a8a"/>
+  <!-- Cockpit glass -->
+  <ellipse cx="300" cy="225" rx="40" ry="58" fill="#1d4ed8"/>
+  <ellipse cx="300" cy="220" rx="32" ry="48" fill="#2563eb"/>
+  <!-- Cockpit glow -->
+  <ellipse cx="300" cy="215" rx="22" ry="34" fill="url(#coreGlow)"/>
+  <!-- Cockpit highlight -->
+  <ellipse cx="290" cy="200" rx="10" ry="16" fill="white" opacity="0.2"/>
+
+  <!-- Ship hull detail lines -->
+  <line x1="260" y1="300" x2="260" y2="400" stroke="#60a5fa" stroke-width="1.5" opacity="0.4"/>
+  <line x1="340" y1="300" x2="340" y2="400" stroke="#60a5fa" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Nose tip -->
+  <circle cx="300" cy="105" r="6" fill="#93c5fd" filter="url(#softGlow)"/>
+</svg>

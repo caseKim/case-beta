@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 636 1048" width="636" height="1048">
+  <defs>
+    <radialGradient id="bg2" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#0d1030"/>
+      <stop offset="100%" stop-color="#0a0a0f"/>
+    </radialGradient>
+    <radialGradient id="eng2" cx="50%" cy="0%" r="100%">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="cardGlow" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#b388ff" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow2" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textGlow2" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="10" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- BG (dimmed game scene) -->
+  <rect width="636" height="1048" fill="url(#bg2)"/>
+
+  <!-- Stars (faded) -->
+  <circle cx="80" cy="120" r="1.5" fill="white" opacity="0.3"/>
+  <circle cx="300" cy="80" r="1" fill="white" opacity="0.2"/>
+  <circle cx="520" cy="110" r="1.2" fill="white" opacity="0.3"/>
+  <circle cx="160" cy="500" r="1" fill="white" opacity="0.2"/>
+  <circle cx="480" cy="550" r="1.5" fill="white" opacity="0.3"/>
+
+  <!-- HUD top bar (dimmed) -->
+  <rect x="0" y="0" width="636" height="56" fill="#0a0a0f" opacity="0.9"/>
+  <rect x="0" y="56" width="636" height="7" fill="#1a1a2e"/>
+  <rect x="0" y="56" width="260" height="7" fill="#b388ff" opacity="0.5"/>
+  <text x="30" y="36" font-family="monospace" font-size="22" fill="#00e5ff" font-weight="bold" opacity="0.5">SCORE 942</text>
+  <text x="270" y="36" font-family="monospace" font-size="22" fill="#ffd60a" font-weight="bold" text-anchor="middle" opacity="0.5">STAGE 3</text>
+  <text x="606" y="36" font-family="monospace" font-size="22" fill="#b388ff" font-weight="bold" text-anchor="end" opacity="0.5">LV 5</text>
+
+  <!-- Dim overlay -->
+  <rect x="0" y="63" width="636" height="985" fill="black" opacity="0.55"/>
+
+  <!-- Ship (background, faded) -->
+  <polygon points="318,630 358,740 318,724 278,740" fill="#1e40af" opacity="0.4"/>
+  <ellipse cx="318" cy="680" rx="26" ry="36" fill="#1e3a8a" opacity="0.35"/>
+  <ellipse cx="318" cy="748" rx="20" ry="12" fill="#fbbf24" opacity="0.3"/>
+
+  <!-- Level up banner -->
+  <text x="318" y="170" font-family="Arial Black, Arial, sans-serif" font-size="44" fill="#b388ff" text-anchor="middle" font-weight="900" filter="url(#textGlow2)">LEVEL UP!</text>
+  <text x="318" y="210" font-family="Arial, sans-serif" font-size="20" fill="#d8b4fe" text-anchor="middle" opacity="0.8">업그레이드를 선택하세요</text>
+
+  <!-- XP level indicator -->
+  <circle cx="318" cy="138" r="22" fill="none" stroke="#b388ff" stroke-width="2.5" opacity="0.8"/>
+  <text x="318" y="145" font-family="Arial Black, Arial, sans-serif" font-size="20" fill="#b388ff" text-anchor="middle" font-weight="900">5</text>
+
+  <!-- Cards -->
+  <!-- Card 1: Rapid Fire -->
+  <rect x="30" y="240" width="176" height="240" rx="16" fill="#0f0f2a" stroke="#b388ff" stroke-width="2" opacity="0.95"/>
+  <rect x="30" y="240" width="176" height="240" rx="16" fill="url(#cardGlow)"/>
+  <!-- Icon circle -->
+  <circle cx="118" cy="316" r="36" fill="#1a1a3e" stroke="#b388ff" stroke-width="1.5"/>
+  <!-- Lightning icon -->
+  <polygon points="124,292 108,316 120,316 112,340 128,312 116,312" fill="#fbbf24"/>
+  <text x="118" y="378" font-family="Arial Black, Arial, sans-serif" font-size="15" fill="white" text-anchor="middle" font-weight="900">Rapid Fire</text>
+  <text x="118" y="398" font-family="Arial, sans-serif" font-size="12" fill="#93c5fd" text-anchor="middle">발사 속도 +1</text>
+  <text x="118" y="416" font-family="Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">간격 -50ms</text>
+  <text x="118" y="456" font-family="Arial, sans-serif" font-size="11" fill="#b388ff" text-anchor="middle" opacity="0.8">▼ SELECT</text>
+
+  <!-- Card 2: Left Wing (highlighted/selected) -->
+  <rect x="230" y="228" width="176" height="264" rx="16" fill="#0f0f2a" stroke="#00e5ff" stroke-width="2.5"/>
+  <rect x="230" y="228" width="176" height="264" rx="16" fill="#00e5ff" opacity="0.06"/>
+  <!-- Glow border pulse -->
+  <rect x="228" y="226" width="180" height="268" rx="17" fill="none" stroke="#00e5ff" stroke-width="1" opacity="0.4"/>
+  <!-- Icon circle -->
+  <circle cx="318" cy="316" r="36" fill="#0e2a4a" stroke="#00e5ff" stroke-width="2"/>
+  <!-- Wing icon -->
+  <polygon points="310,298 296,324 314,316 308,338 326,308 308,316" fill="#00e5ff"/>
+  <text x="318" y="378" font-family="Arial Black, Arial, sans-serif" font-size="15" fill="white" text-anchor="middle" font-weight="900">Left Wing</text>
+  <text x="318" y="398" font-family="Arial, sans-serif" font-size="12" fill="#00e5ff" text-anchor="middle">레이저 빔 발사</text>
+  <text x="318" y="418" font-family="Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">가장 가까운 적 조준</text>
+  <!-- NEW badge -->
+  <rect x="274" y="458" width="88" height="24" rx="12" fill="#00e5ff"/>
+  <text x="318" y="474" font-family="Arial Black, Arial, sans-serif" font-size="13" fill="#0a0a0f" text-anchor="middle" font-weight="900">SELECT</text>
+
+  <!-- Card 3: Shield -->
+  <rect x="430" y="240" width="176" height="240" rx="16" fill="#0f0f2a" stroke="#b388ff" stroke-width="2" opacity="0.95"/>
+  <rect x="430" y="240" width="176" height="240" rx="16" fill="url(#cardGlow)"/>
+  <!-- Icon circle -->
+  <circle cx="518" cy="316" r="36" fill="#1a1a3e" stroke="#b388ff" stroke-width="1.5"/>
+  <!-- Shield icon -->
+  <path d="M518 294 L502 302 L502 322 Q502 332 518 338 Q534 332 534 322 L534 302 Z" fill="none" stroke="#60a5fa" stroke-width="2.5"/>
+  <text x="518" y="378" font-family="Arial Black, Arial, sans-serif" font-size="15" fill="white" text-anchor="middle" font-weight="900">Shield</text>
+  <text x="518" y="398" font-family="Arial, sans-serif" font-size="12" fill="#93c5fd" text-anchor="middle">방어막 활성화</text>
+  <text x="518" y="416" font-family="Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">적 충돌 차단</text>
+  <text x="518" y="456" font-family="Arial, sans-serif" font-size="11" fill="#b388ff" text-anchor="middle" opacity="0.8">▼ SELECT</text>
+
+  <!-- More upgrade icons teaser -->
+  <text x="318" y="535" font-family="Arial, sans-serif" font-size="14" fill="#6b7280" text-anchor="middle">총 16가지 업그레이드</text>
+
+  <!-- Small upgrade icon previews -->
+  <circle cx="198" cy="575" r="20" fill="#1a1a3e" stroke="#4b5563" stroke-width="1"/>
+  <text x="198" y="580" font-family="Arial, sans-serif" font-size="14" fill="#fbbf24" text-anchor="middle">⚡</text>
+  <circle cx="248" cy="575" r="20" fill="#1a1a3e" stroke="#4b5563" stroke-width="1"/>
+  <text x="248" y="580" font-family="Arial, sans-serif" font-size="14" fill="#ff6060" text-anchor="middle">🔴</text>
+  <circle cx="298" cy="575" r="20" fill="#1a1a3e" stroke="#4b5563" stroke-width="1"/>
+  <text x="298" y="580" font-family="Arial, sans-serif" font-size="14" fill="#30d158" text-anchor="middle">💚</text>
+  <circle cx="348" cy="575" r="20" fill="#1a1a3e" stroke="#4b5563" stroke-width="1"/>
+  <text x="348" y="580" font-family="Arial, sans-serif" font-size="14" fill="#00e5ff" text-anchor="middle">🔵</text>
+  <circle cx="398" cy="575" r="20" fill="#1a1a3e" stroke="#4b5563" stroke-width="1"/>
+  <text x="398" y="580" font-family="Arial, sans-serif" font-size="14" fill="#b388ff" text-anchor="middle">⭐</text>
+  <text x="438" y="580" font-family="Arial, sans-serif" font-size="18" fill="#4b5563" text-anchor="middle">···</text>
+
+  <!-- Bottom caption bar -->
+  <rect x="0" y="940" width="636" height="108" fill="#050510" opacity="0.95"/>
+  <line x1="0" y1="940" x2="636" y2="940" stroke="#b388ff" stroke-width="1.5" opacity="0.5"/>
+  <text x="318" y="986" font-family="Arial Black, Arial, sans-serif" font-size="32" fill="#b388ff" text-anchor="middle" font-weight="900" filter="url(#textGlow2)">나만의 빌드</text>
+  <text x="318" y="1022" font-family="Arial, sans-serif" font-size="20" fill="#d8b4fe" text-anchor="middle" opacity="0.8">매 레벨업마다 전략적 업그레이드 선택</text>
+</svg>

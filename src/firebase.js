@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp, Timestamp } from 'firebase/firestore'
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore'
 
 const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -25,19 +25,37 @@ export function ensureAuth() {
   })
 }
 
+function getDateKey() {
+  const d = new Date()
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+function getWeekKey() {
+  const d = new Date()
+  // ISO 8601: Thursday of the current week determines the year and week number
+  const thu = new Date(d)
+  thu.setUTCDate(d.getUTCDate() + (4 - (d.getUTCDay() || 7)))
+  const year = thu.getUTCFullYear()
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const week = Math.ceil(((thu - jan4) / 86400000 + (jan4.getUTCDay() || 7) - 3) / 7)
+  return `${year}-${String(week).padStart(2, '0')}`
+}
+
 export async function submitScore({ uid, nickname, score, kills, time, stage }) {
-  return addDoc(scoresRef, { uid, nickname, score, kills, time, stage, ts: serverTimestamp() })
+  return addDoc(scoresRef, {
+    uid, nickname, score, kills, time, stage,
+    ts: serverTimestamp(),
+    date: getDateKey(),
+    yearWeek: getWeekKey(),
+  })
 }
 
 export async function fetchLeaderboard(tab, uid) {
   let q
-  if (tab === 'today' || tab === 'week') {
-    const start = new Date()
-    if (tab === 'week') start.setDate(start.getDate() - 7)
-    start.setHours(0, 0, 0, 0)
-    // Firestore requires orderBy(ts) first when filtering ts >= start;
-    // score sort happens client-side after dedup, so fetch enough docs.
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), orderBy('ts'), limit(300))
+  if (tab === 'today') {
+    q = query(scoresRef, where('date', '==', getDateKey()), orderBy('score', 'desc'), limit(50))
+  } else if (tab === 'week') {
+    q = query(scoresRef, where('yearWeek', '==', getWeekKey()), orderBy('score', 'desc'), limit(50))
   } else {
     q = query(scoresRef, orderBy('score', 'desc'), limit(50))
   }

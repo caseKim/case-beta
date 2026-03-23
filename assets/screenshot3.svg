@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 636 1048" width="636" height="1048">
+  <defs>
+    <radialGradient id="bg3" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#150a20"/>
+      <stop offset="100%" stop-color="#0a0a0f"/>
+    </radialGradient>
+    <radialGradient id="eng3" cx="50%" cy="0%" r="100%">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="waveGlow" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#ff2d55" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#0a0a0f" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow3" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textGlow3" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="warnGlow" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- BG -->
+  <rect width="636" height="1048" fill="url(#bg3)"/>
+  <rect width="636" height="1048" fill="url(#waveGlow)"/>
+
+  <!-- Stars -->
+  <circle cx="70" cy="100" r="1.5" fill="white" opacity="0.5"/>
+  <circle cx="220" cy="65" r="1" fill="white" opacity="0.4"/>
+  <circle cx="400" cy="85" r="1.8" fill="white" opacity="0.5"/>
+  <circle cx="560" cy="120" r="1.2" fill="white" opacity="0.4"/>
+  <circle cx="40" cy="280" r="1" fill="white" opacity="0.3"/>
+  <circle cx="600" cy="320" r="1.5" fill="white" opacity="0.4"/>
+  <circle cx="120" cy="520" r="1.2" fill="white" opacity="0.3"/>
+  <circle cx="510" cy="490" r="1" fill="white" opacity="0.4"/>
+
+  <!-- HUD -->
+  <rect x="0" y="0" width="636" height="56" fill="#0a0a0f" opacity="0.9"/>
+  <rect x="0" y="56" width="636" height="7" fill="#1a1a2e"/>
+  <rect x="0" y="56" width="550" height="7" fill="#b388ff"/>
+  <text x="30" y="36" font-family="monospace" font-size="22" fill="#00e5ff" font-weight="bold">SCORE 3210</text>
+  <text x="270" y="36" font-family="monospace" font-size="22" fill="#ffd60a" font-weight="bold" text-anchor="middle">STAGE 8</text>
+  <text x="606" y="36" font-family="monospace" font-size="22" fill="#b388ff" font-weight="bold" text-anchor="end">LV 12</text>
+
+  <!-- Orange edge flash (wave incoming) -->
+  <rect x="0" y="0" width="28" height="1048" fill="rgba(255,160,0,0.18)"/>
+  <rect x="608" y="0" width="28" height="1048" fill="rgba(255,160,0,0.18)"/>
+  <rect x="0" y="63" width="636" height="28" fill="rgba(255,160,0,0.12)"/>
+  <rect x="0" y="1020" width="636" height="28" fill="rgba(255,160,0,0.12)"/>
+
+  <!-- WARNING overlay -->
+  <rect x="80" y="160" width="476" height="110" rx="12" fill="black" opacity="0.65"/>
+  <rect x="80" y="160" width="476" height="110" rx="12" fill="none" stroke="#ff9f0a" stroke-width="2" opacity="0.8"/>
+  <text x="318" y="220" font-family="Arial Black, Arial, sans-serif" font-size="48" fill="#ff9f0a" text-anchor="middle" font-weight="900" filter="url(#warnGlow)">WARNING</text>
+  <text x="318" y="252" font-family="Arial Black, Arial, sans-serif" font-size="18" fill="#ff9f0a" text-anchor="middle" opacity="0.9">WAVE INCOMING</text>
+
+  <!-- Wave enemy formation (many enemies in rows) -->
+  <!-- Row 1 - dense -->
+  <circle cx="80" cy="320" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="80" cy="320" r="14" fill="#ff2d55"/>
+  <circle cx="148" cy="310" r="13" fill="#ff9f0a" filter="url(#glow3)" opacity="0.85"/>
+  <circle cx="148" cy="310" r="10" fill="#ff9f0a"/>
+  <circle cx="210" cy="325" r="18" fill="#bf5af2" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="210" cy="325" r="14" fill="#bf5af2"/>
+  <circle cx="278" cy="308" r="13" fill="#ff9f0a" filter="url(#glow3)" opacity="0.8"/>
+  <circle cx="278" cy="308" r="10" fill="#ff9f0a"/>
+  <circle cx="340" cy="320" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="340" cy="320" r="14" fill="#ff2d55"/>
+  <circle cx="406" cy="312" r="16" fill="#30d158" filter="url(#glow3)" opacity="0.85"/>
+  <circle cx="406" cy="312" r="12" fill="#30d158"/>
+  <circle cx="472" cy="325" r="13" fill="#ff9f0a" filter="url(#glow3)" opacity="0.8"/>
+  <circle cx="472" cy="325" r="10" fill="#ff9f0a"/>
+  <circle cx="535" cy="315" r="18" fill="#bf5af2" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="535" cy="315" r="14" fill="#bf5af2"/>
+
+  <!-- Row 2 -->
+  <circle cx="110" cy="400" r="24" fill="#ffd60a" filter="url(#glow3)" opacity="0.85"/>
+  <circle cx="110" cy="400" r="20" fill="#ffd60a"/>
+  <circle cx="196" cy="390" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="196" cy="390" r="14" fill="#ff2d55"/>
+  <circle cx="270" cy="405" r="18" fill="#5ac8fa" filter="url(#glow3)" opacity="0.75"/>
+  <circle cx="270" cy="405" r="14" fill="#5ac8fa"/>
+  <circle cx="350" cy="392" r="26" fill="#8e9fb5" filter="url(#glow3)" opacity="0.8"/>
+  <circle cx="350" cy="392" r="22" fill="#8e9fb5"/>
+  <circle cx="440" cy="404" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.9"/>
+  <circle cx="440" cy="404" r="14" fill="#ff2d55"/>
+  <circle cx="524" cy="395" r="18" fill="#30d158" filter="url(#glow3)" opacity="0.85"/>
+  <circle cx="524" cy="395" r="12" fill="#30d158"/>
+
+  <!-- Row 3 (partial) -->
+  <circle cx="60" cy="475" r="13" fill="#ff9f0a" filter="url(#glow3)" opacity="0.7"/>
+  <circle cx="60" cy="475" r="10" fill="#ff9f0a"/>
+  <circle cx="150" cy="468" r="18" fill="#bf5af2" filter="url(#glow3)" opacity="0.75"/>
+  <circle cx="150" cy="468" r="14" fill="#bf5af2"/>
+  <circle cx="230" cy="480" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.7"/>
+  <circle cx="230" cy="480" r="14" fill="#ff2d55"/>
+  <circle cx="318" cy="470" r="24" fill="#ffd60a" filter="url(#glow3)" opacity="0.75"/>
+  <circle cx="318" cy="470" r="20" fill="#ffd60a"/>
+  <circle cx="404" cy="478" r="13" fill="#ff9f0a" filter="url(#glow3)" opacity="0.7"/>
+  <circle cx="404" cy="478" r="10" fill="#ff9f0a"/>
+  <circle cx="490" cy="470" r="18" fill="#5ac8fa" filter="url(#glow3)" opacity="0.65"/>
+  <circle cx="490" cy="470" r="14" fill="#5ac8fa"/>
+  <circle cx="580" cy="475" r="18" fill="#ff2d55" filter="url(#glow3)" opacity="0.7"/>
+  <circle cx="580" cy="475" r="14" fill="#ff2d55"/>
+
+  <!-- Hit effects -->
+  <circle cx="110" cy="400" r="32" fill="none" stroke="rgba(255,120,50,0.55)" stroke-width="2"/>
+  <circle cx="110" cy="400" r="44" fill="none" stroke="rgba(255,120,50,0.25)" stroke-width="1.5"/>
+  <text x="110" y="368" font-family="monospace" font-size="18" fill="#ffd60a" text-anchor="middle" opacity="0.9">+1</text>
+  <text x="350" y="356" font-family="monospace" font-size="18" fill="#ffd60a" text-anchor="middle" opacity="0.8">+1</text>
+
+  <!-- Enemy bullets -->
+  <circle cx="200" cy="600" r="6" fill="#ff453a" filter="url(#glow3)"/>
+  <circle cx="440" cy="580" r="6" fill="#ff453a" filter="url(#glow3)"/>
+  <circle cx="310" cy="620" r="6" fill="#ff453a" filter="url(#glow3)"/>
+
+  <!-- Player bullets (dense) -->
+  <circle cx="318" cy="555" r="4" fill="white" opacity="0.95"/>
+  <circle cx="295" cy="530" r="4" fill="white" opacity="0.9"/>
+  <circle cx="341" cy="530" r="4" fill="white" opacity="0.9"/>
+  <circle cx="272" cy="510" r="4" fill="white" opacity="0.85"/>
+  <circle cx="364" cy="510" r="4" fill="white" opacity="0.85"/>
+  <circle cx="250" cy="490" r="4" fill="white" opacity="0.8"/>
+  <circle cx="386" cy="490" r="4" fill="white" opacity="0.8"/>
+
+  <!-- Laser beams -->
+  <line x1="272" y1="690" x2="150" y2="468" stroke="#ff6060" stroke-width="3" opacity="0.55" filter="url(#glow3)"/>
+  <line x1="364" y1="690" x2="490" y2="470" stroke="#ff6060" stroke-width="3" opacity="0.55" filter="url(#glow3)"/>
+
+  <!-- Cannon blast effect -->
+  <circle cx="318" cy="380" r="65" fill="rgba(26,111,255,0.08)"/>
+  <circle cx="318" cy="380" r="65" fill="none" stroke="rgba(26,111,255,0.45)" stroke-width="2.5" filter="url(#glow3)"/>
+
+  <!-- Shield -->
+  <circle cx="318" cy="730" r="88" fill="none" stroke="#00e5ff" stroke-width="2" opacity="0.35" stroke-dasharray="10 7"/>
+
+  <!-- Orbs -->
+  <circle cx="406" cy="730" r="7" fill="#b388ff" filter="url(#glow3)"/>
+  <circle cx="230" cy="730" r="7" fill="#b388ff" filter="url(#glow3)"/>
+
+  <!-- Engine -->
+  <ellipse cx="318" cy="810" rx="40" ry="18" fill="url(#eng3)" opacity="0.9"/>
+  <ellipse cx="318" cy="808" rx="20" ry="12" fill="#fbbf24" filter="url(#glow3)"/>
+  <ellipse cx="318" cy="812" rx="12" ry="7" fill="#fde68a"/>
+  <ellipse cx="318" cy="814" rx="6" ry="4" fill="white" opacity="0.9"/>
+
+  <!-- Wings -->
+  <polygon points="268,762 180,812 210,700 278,715" fill="#1d4ed8"/>
+  <polygon points="268,762 180,812 210,700 278,715" fill="#3b82f6" opacity="0.5"/>
+  <polygon points="368,762 456,812 426,700 358,715" fill="#1d4ed8"/>
+  <polygon points="368,762 456,812 426,700 358,715" fill="#3b82f6" opacity="0.5"/>
+  <polygon points="238,742 190,760 208,710" fill="#2563eb" opacity="0.7"/>
+  <polygon points="398,742 446,760 428,710" fill="#2563eb" opacity="0.7"/>
+
+  <!-- Body -->
+  <polygon points="318,660 368,800 318,782 268,800" fill="#1e40af"/>
+  <polygon points="318,660 368,800 318,782 268,800" fill="#3b82f6" opacity="0.4"/>
+  <polygon points="318,672 328,792 318,780 308,792" fill="#60a5fa" opacity="0.3"/>
+
+  <!-- Cockpit -->
+  <ellipse cx="318" cy="720" rx="34" ry="46" fill="#1e3a8a"/>
+  <ellipse cx="318" cy="716" rx="26" ry="36" fill="#2563eb"/>
+  <ellipse cx="318" cy="710" rx="18" ry="26" fill="#93c5fd" opacity="0.5"/>
+  <ellipse cx="311" cy="702" rx="7" ry="11" fill="white" opacity="0.2"/>
+  <circle cx="318" cy="664" r="5" fill="#93c5fd" filter="url(#glow3)"/>
+
+  <!-- Stage number flash -->
+  <text x="318" y="880" font-family="Arial Black, Arial, sans-serif" font-size="52" fill="#ffd60a" text-anchor="middle" font-weight="900" opacity="0.08" filter="url(#textGlow3)">STAGE 8</text>
+
+  <!-- Bottom caption bar -->
+  <rect x="0" y="940" width="636" height="108" fill="#050510" opacity="0.95"/>
+  <line x1="0" y1="940" x2="636" y2="940" stroke="#ff9f0a" stroke-width="1.5" opacity="0.5"/>
+  <text x="318" y="986" font-family="Arial Black, Arial, sans-serif" font-size="32" fill="#ff9f0a" text-anchor="middle" font-weight="900" filter="url(#textGlow3)">웨이브 &amp; 다양한 적</text>
+  <text x="318" y="1022" font-family="Arial, sans-serif" font-size="20" fill="#fbbf24" text-anchor="middle" opacity="0.8">8가지 개성 있는 적과의 스테이지 전투</text>
+</svg>

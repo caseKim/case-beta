@@ -1,0 +1,202 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1932 828" width="1932" height="828">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="75%">
+      <stop offset="0%" stop-color="#0f1035"/>
+      <stop offset="100%" stop-color="#050510"/>
+    </radialGradient>
+    <radialGradient id="shipGlow" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#1a3a8a" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="engineGlow" cx="50%" cy="0%" r="100%">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="leftPurple" cx="0%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#4c1d95" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rightCyan" cx="100%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#0e7490" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#050510" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="textGlow" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="18" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1932" height="828" fill="url(#bg)"/>
+  <rect width="1932" height="828" fill="url(#leftPurple)"/>
+  <rect width="1932" height="828" fill="url(#rightCyan)"/>
+
+  <!-- Ship center glow -->
+  <ellipse cx="966" cy="500" rx="500" ry="380" fill="url(#shipGlow)"/>
+
+  <!-- Stars -->
+  <circle cx="120" cy="80" r="2" fill="white" opacity="0.7"/>
+  <circle cx="280" cy="150" r="1.2" fill="white" opacity="0.4"/>
+  <circle cx="60" cy="300" r="1.8" fill="white" opacity="0.5"/>
+  <circle cx="400" cy="60" r="1" fill="white" opacity="0.6"/>
+  <circle cx="180" cy="420" r="1.5" fill="white" opacity="0.4"/>
+  <circle cx="350" cy="700" r="2" fill="white" opacity="0.5"/>
+  <circle cx="100" cy="600" r="1" fill="white" opacity="0.3"/>
+  <circle cx="500" cy="780" r="1.5" fill="white" opacity="0.4"/>
+  <circle cx="1600" cy="90" r="2" fill="white" opacity="0.7"/>
+  <circle cx="1780" cy="200" r="1.2" fill="white" opacity="0.5"/>
+  <circle cx="1850" cy="400" r="1.8" fill="white" opacity="0.4"/>
+  <circle cx="1700" cy="600" r="1" fill="white" opacity="0.6"/>
+  <circle cx="1500" cy="750" r="2" fill="white" opacity="0.5"/>
+  <circle cx="1900" cy="700" r="1.5" fill="white" opacity="0.3"/>
+  <circle cx="700" cy="50" r="1" fill="white" opacity="0.4"/>
+  <circle cx="850" cy="780" r="1.5" fill="white" opacity="0.5"/>
+  <circle cx="1100" cy="30" r="2" fill="white" opacity="0.6"/>
+  <circle cx="1250" cy="800" r="1.2" fill="white" opacity="0.4"/>
+  <circle cx="1450" cy="100" r="1" fill="white" opacity="0.5"/>
+  <circle cx="620" cy="680" r="1.8" fill="white" opacity="0.3"/>
+  <circle cx="1320" cy="720" r="1.5" fill="white" opacity="0.4"/>
+
+  <!-- Enemies (left side, scattered) -->
+  <!-- Red enemy -->
+  <circle cx="200" cy="560" r="22" fill="#ff2d55" filter="url(#softGlow)" opacity="0.9"/>
+  <circle cx="200" cy="560" r="14" fill="#ff2d55"/>
+  <!-- Orange fast enemy -->
+  <circle cx="320" cy="480" r="16" fill="#ff9f0a" filter="url(#softGlow)" opacity="0.8"/>
+  <circle cx="320" cy="480" r="10" fill="#ff9f0a"/>
+  <!-- Purple homing enemy -->
+  <circle cx="140" cy="400" r="22" fill="#bf5af2" filter="url(#softGlow)" opacity="0.85"/>
+  <circle cx="140" cy="400" r="14" fill="#bf5af2"/>
+  <!-- Green shooter enemy (left) -->
+  <circle cx="260" cy="650" r="20" fill="#30d158" filter="url(#softGlow)" opacity="0.7"/>
+  <circle cx="260" cy="650" r="12" fill="#30d158"/>
+
+  <!-- Enemies (right side, scattered) -->
+  <!-- Red enemy -->
+  <circle cx="1730" cy="540" r="22" fill="#ff2d55" filter="url(#softGlow)" opacity="0.9"/>
+  <circle cx="1730" cy="540" r="14" fill="#ff2d55"/>
+  <!-- Orange fast enemy -->
+  <circle cx="1620" cy="460" r="16" fill="#ff9f0a" filter="url(#softGlow)" opacity="0.8"/>
+  <circle cx="1620" cy="460" r="10" fill="#ff9f0a"/>
+  <!-- Yellow splitter enemy -->
+  <circle cx="1810" cy="380" r="28" fill="#ffd60a" filter="url(#softGlow)" opacity="0.85"/>
+  <circle cx="1810" cy="380" r="20" fill="#ffd60a"/>
+  <!-- Cyan ghost enemy -->
+  <circle cx="1680" cy="660" r="22" fill="#5ac8fa" filter="url(#softGlow)" opacity="0.7"/>
+  <circle cx="1680" cy="660" r="14" fill="#5ac8fa"/>
+
+  <!-- Bullet trails (from ship toward enemies) -->
+  <line x1="940" y1="480" x2="200" y2="560" stroke="white" stroke-width="2.5" opacity="0.25"/>
+  <line x1="966" y1="480" x2="140" y2="400" stroke="white" stroke-width="2.5" opacity="0.25"/>
+  <line x1="992" y1="480" x2="1730" y2="540" stroke="white" stroke-width="2.5" opacity="0.25"/>
+
+  <!-- Laser beams -->
+  <line x1="900" y1="480" x2="140" y2="400" stroke="#ff6060" stroke-width="3" opacity="0.5" filter="url(#softGlow)"/>
+  <line x1="1032" y1="480" x2="1810" y2="380" stroke="#ff6060" stroke-width="3" opacity="0.5" filter="url(#softGlow)"/>
+
+  <!-- Homing missile trails -->
+  <path d="M 1010 500 Q 1200 420 1620 460" stroke="#00e5ff" stroke-width="2" fill="none" opacity="0.4"/>
+  <path d="M 922 500 Q 700 440 320 480" stroke="#00e5ff" stroke-width="2" fill="none" opacity="0.4"/>
+
+  <!-- Ship: engine exhaust -->
+  <ellipse cx="966" cy="700" rx="55" ry="25" fill="url(#engineGlow)" opacity="0.95"/>
+  <ellipse cx="966" cy="715" rx="32" ry="42" fill="#fb923c" opacity="0.12"/>
+  <ellipse cx="966" cy="698" rx="26" ry="16" fill="#fbbf24" filter="url(#softGlow)"/>
+  <ellipse cx="966" cy="702" rx="16" ry="10" fill="#fde68a"/>
+  <ellipse cx="966" cy="705" rx="8" ry="6" fill="white" opacity="0.85"/>
+
+  <!-- Ship: left wing -->
+  <polygon points="866,630 700,720 760,550 880,580" fill="#1d4ed8"/>
+  <polygon points="866,630 700,720 760,550 880,580" fill="#3b82f6" opacity="0.5"/>
+  <line x1="840" y1="565" x2="720" y2="700" stroke="#60a5fa" stroke-width="2.5" opacity="0.6"/>
+
+  <!-- Ship: right wing -->
+  <polygon points="1066,630 1232,720 1172,550 1052,580" fill="#1d4ed8"/>
+  <polygon points="1066,630 1232,720 1172,550 1052,580" fill="#3b82f6" opacity="0.5"/>
+  <line x1="1092" y1="565" x2="1212" y2="700" stroke="#60a5fa" stroke-width="2.5" opacity="0.6"/>
+
+  <!-- Ship: body -->
+  <polygon points="966,380 1060,660 966,620 872,660" fill="#1e40af"/>
+  <polygon points="966,380 1060,660 966,620 872,660" fill="#3b82f6" opacity="0.45"/>
+  <!-- Body stripe -->
+  <polygon points="966,400 984,645 966,628 948,645" fill="#60a5fa" opacity="0.35"/>
+
+  <!-- Ship: cockpit -->
+  <ellipse cx="966" cy="510" rx="46" ry="62" fill="#1e3a8a"/>
+  <ellipse cx="966" cy="505" rx="35" ry="50" fill="#1d4ed8"/>
+  <ellipse cx="966" cy="498" rx="26" ry="38" fill="#2563eb"/>
+  <ellipse cx="966" cy="492" rx="18" ry="28" fill="#93c5fd" opacity="0.5"/>
+  <ellipse cx="956" cy="480" rx="8" ry="14" fill="white" opacity="0.18"/>
+
+  <!-- Ship hull lines -->
+  <line x1="930" y1="570" x2="930" y2="650" stroke="#60a5fa" stroke-width="2" opacity="0.35"/>
+  <line x1="1002" y1="570" x2="1002" y2="650" stroke="#60a5fa" stroke-width="2" opacity="0.35"/>
+
+  <!-- Ship: nose -->
+  <circle cx="966" cy="385" r="7" fill="#93c5fd" filter="url(#softGlow)"/>
+
+  <!-- Shield -->
+  <circle cx="966" cy="540" r="115" fill="none" stroke="#00e5ff" stroke-width="2.5" opacity="0.35" stroke-dasharray="12 8"/>
+
+  <!-- Orbs -->
+  <circle cx="1081" cy="540" r="8" fill="#b388ff" filter="url(#softGlow)"/>
+  <circle cx="900" cy="455" r="8" fill="#b388ff" filter="url(#softGlow)"/>
+
+  <!-- Title text: VOID -->
+  <text x="966" y="200"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="180"
+    fill="#00e5ff"
+    text-anchor="middle"
+    letter-spacing="30"
+    filter="url(#textGlow)"
+    opacity="0.25">VOID</text>
+  <text x="966" y="200"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="180"
+    fill="#00e5ff"
+    text-anchor="middle"
+    letter-spacing="30">VOID</text>
+
+  <!-- Title text: SURVIVOR -->
+  <text x="966" y="310"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="90"
+    fill="white"
+    text-anchor="middle"
+    letter-spacing="20"
+    opacity="0.18"
+    filter="url(#textGlow)">SURVIVOR</text>
+  <text x="966" y="310"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-size="90"
+    fill="white"
+    text-anchor="middle"
+    letter-spacing="20"
+    opacity="0.85">SURVIVOR</text>
+
+  <!-- Subtitle -->
+  <text x="966" y="780"
+    font-family="Arial, sans-serif"
+    font-size="28"
+    fill="#60a5fa"
+    text-anchor="middle"
+    letter-spacing="8"
+    opacity="0.7">ACTION · ROGUELITE · SURVIVAL</text>
+
+  <!-- Decorative horizontal lines -->
+  <line x1="500" y1="235" x2="780" y2="235" stroke="#00e5ff" stroke-width="1.5" opacity="0.3"/>
+  <line x1="1152" y1="235" x2="1432" y2="235" stroke="#00e5ff" stroke-width="1.5" opacity="0.3"/>
+</svg>
