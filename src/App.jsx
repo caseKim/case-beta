@@ -386,6 +386,9 @@ export default function App() {
   const [nextRechargeSec, setNextRechargeSec] = useState(0)
   const energyCurRef          = useRef(null)
   const energyLastRechargeRef = useRef(0)
+  const [tabHidden,  setTabHidden]  = useState(false)
+  const tabHiddenRef = useRef(false)
+  const hiddenAtRef  = useRef(0)
   const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
   const [nicknameInput, setNicknameInput] = useState(() => localStorage.getItem('voidNickname') ? '' : makeDefaultNickname())
   const [lbTab,    setLbTab]    = useState('today')
@@ -462,7 +465,7 @@ export default function App() {
 
   // Spawn enemies
   useEffect(() => {
-    if (!started || gameOver || paused) return
+    if (!started || gameOver || paused || tabHidden) return
 
     const makeEnemy = (s) => {
       const rand     = Math.random()
@@ -580,7 +583,7 @@ export default function App() {
     scheduleTrickle()
 
     return () => Object.values(timers).forEach(clearTimeout)
-  }, [started, gameOver, paused])
+  }, [started, gameOver, paused, tabHidden])
 
   // Announce stage 1 on game start (only once, not on every resume)
   useEffect(() => {
@@ -592,7 +595,7 @@ export default function App() {
 
   // Game loop
   useEffect(() => {
-    if (!started || gameOver || paused) return
+    if (!started || gameOver || paused || tabHidden) return
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
 
@@ -1049,7 +1052,7 @@ export default function App() {
 
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [started, gameOver, paused])
+  }, [started, gameOver, paused, tabHidden])
 
   useEffect(() => {
     if (!gameOver) return
@@ -1178,6 +1181,25 @@ export default function App() {
     }, 1000)
     return () => clearInterval(id)
   }, [uid])
+
+  // Page Visibility: pause game when tab is hidden, resume with corrected phase timer
+  useEffect(() => {
+    if (!started || gameOver) return
+    const onVisibility = () => {
+      if (document.hidden) {
+        tabHiddenRef.current = true
+        hiddenAtRef.current = Date.now()
+        setTabHidden(true)
+      } else {
+        const elapsed = Date.now() - hiddenAtRef.current
+        phaseStartRef.current += elapsed  // shift phase start so remaining time is preserved
+        tabHiddenRef.current = false
+        setTabHidden(false)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [started, gameOver])
 
   useEffect(() => {
     if (!started) loadLeaderboard('today')
