@@ -31,15 +31,13 @@ export async function submitScore({ uid, nickname, score, kills, time, stage }) 
 
 export async function fetchLeaderboard(tab, uid) {
   let q
-  if (tab === 'today') {
+  if (tab === 'today' || tab === 'week') {
     const start = new Date()
+    if (tab === 'week') start.setDate(start.getDate() - 7)
     start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(50))
-  } else if (tab === 'week') {
-    const start = new Date()
-    start.setDate(start.getDate() - 7)
-    start.setHours(0, 0, 0, 0)
-    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), limit(50))
+    // Firestore requires orderBy(ts) first when filtering ts >= start;
+    // score sort happens client-side after dedup, so fetch enough docs.
+    q = query(scoresRef, where('ts', '>=', Timestamp.fromDate(start)), orderBy('ts'), limit(300))
   } else {
     q = query(scoresRef, orderBy('score', 'desc'), limit(50))
   }
