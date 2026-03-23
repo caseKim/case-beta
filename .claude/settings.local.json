@@ -10,7 +10,22 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(node:*)",
+      "Bash(convert --version)",
+      "Bash(node -e \"require\\(''@resvg/resvg-js''\\)\")",
+      "Bash(node -e \"require\\(''sharp''\\)\")",
+      "Bash(python3 -c \"from PIL import Image; print\\(''''pillow ok''''\\)\")",
+      "Bash(python3 -c \"import cairosvg; print\\(''''cairosvg ok''''\\)\")",
+      "Bash(npx --yes @resvg/resvg-js-cli --version)",
+      "Bash(npx:*)",
+      "Bash(sips -g all logo.png)",
+      "Bash(sips:*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Bash(done)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(ls /Users/ace/Dev/case-beta/*.rules)"
     ]
   }
 }
