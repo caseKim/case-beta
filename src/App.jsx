@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Send, Menu } from 'lucide-react'
 import { ensureAuth, submitScore, fetchLeaderboard, fetchMyBest, fetchEnergy, saveEnergyState, ENERGY_MAX, ENERGY_RECHARGE_MS } from './firebase'
 
 // Fixed logical resolution — 9:16 (standard mobile)
@@ -353,19 +354,6 @@ function GameIcon({ name, size = 44, color = '#b388ff' }) {
       <circle cx={h} cy={h} r={size*0.36} strokeOpacity={0.3} strokeDasharray="3 4"/>
       <circle cx={h + size*0.36} cy={h} r={6}/>
       <circle cx={h - size*0.36} cy={h} r={6}/>
-    </g></svg>
-
-  if (name === 'share') // Paper plane (Lucide send)
-    return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <polygon points={`${size*11/12},${size/12} ${size*5/8},${size*11/12} ${size*11/24},${size*13/24} ${size/12},${size*3/8}`}/>
-      <line x1={size*11/12} y1={size/12} x2={size*11/24} y2={size*13/24}/>
-    </g></svg>
-
-  if (name === 'menu') // Three horizontal lines (hamburger)
-    return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <line x1={q} y1={h-8} x2={t} y2={h-8}/>
-      <line x1={q} y1={h} x2={t} y2={h}/>
-      <line x1={q} y1={h+8} x2={t} y2={h+8}/>
     </g></svg>
 
   return null
@@ -1467,7 +1455,7 @@ export default function App() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
-                  <GameIcon name="share" size={24} color="#b388ff"/>
+                  <Send size={18} color="#b388ff"/>
                 </button>
                 <button onClick={() => { restart(); setStarted(false) }} style={{
                   background: 'transparent', border: '1px solid #333',
@@ -1475,7 +1463,7 @@ export default function App() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
-                  <GameIcon name="menu" size={24} color="#555"/>
+                  <Menu size={18} color="#555"/>
                 </button>
               </div>
               {renderEnergyBar()}
