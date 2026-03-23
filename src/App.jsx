@@ -355,10 +355,10 @@ function GameIcon({ name, size = 44, color = '#b388ff' }) {
       <circle cx={h - size*0.36} cy={h} r={6}/>
     </g></svg>
 
-  if (name === 'share') // Paper plane (Lucide send style)
+  if (name === 'share') // Paper plane (Lucide send)
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <polygon points={`${t-1},${q-1} ${h-1},${t+1} ${h-2},${h+2} ${q-1},${h-3} ${t-1},${q-1}`}/>
-      <line x1={t-1} y1={q-1} x2={h-2} y2={h+2}/>
+      <polygon points={`${size*11/12},${size/12} ${size*5/8},${size*11/12} ${size*11/24},${size*13/24} ${size/12},${size*3/8}`}/>
+      <line x1={size*11/12} y1={size/12} x2={size*11/24} y2={size*13/24}/>
     </g></svg>
 
   if (name === 'menu') // Three horizontal lines (hamburger)
