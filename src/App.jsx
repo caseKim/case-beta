@@ -355,11 +355,10 @@ function GameIcon({ name, size = 44, color = '#b388ff' }) {
       <circle cx={h - size*0.36} cy={h} r={6}/>
     </g></svg>
 
-  if (name === 'share') // Arrow up from tray (share)
+  if (name === 'share') // Paper plane (send/share)
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <polyline points={`${h-7},${h-2} ${h},${q+2} ${h+7},${h-2}`}/>
-      <line x1={h} y1={q+2} x2={h} y2={h+10}/>
-      <polyline points={`${q+4},${h+6} ${q+4},${t-4} ${t-4},${t-4} ${t-4},${h+6}`}/>
+      <polyline points={`${q},${h} ${t},${q+2} ${h+4},${t-2} ${q},${h}`}/>
+      <line x1={q} y1={h} x2={h+2} y2={h+6}/>
     </g></svg>
 
   if (name === 'menu') // Three horizontal lines (hamburger)
