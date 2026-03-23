@@ -375,8 +375,8 @@ export default function App() {
   const [stage,        setStage]        = useState(1)
   const [stageAnn,     setStageAnn]    = useState(0)      // 0 = hidden
   const [waveWarning,  setWaveWarning] = useState(false)
-  const [highScore,    setHighScore_]  = useState(0)
-  const highScoreRef = useRef(0)
+  const [highScore,    setHighScore_]  = useState(() => parseInt(localStorage.getItem('voidHighScore') || '0'))
+  const highScoreRef = useRef(parseInt(localStorage.getItem('voidHighScore') || '0'))
   const setHighScore = (v) => { highScoreRef.current = v; setHighScore_(v) }
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
@@ -1052,6 +1052,7 @@ export default function App() {
     const kills = killCountRef.current
     setFinalStats({ time: secs, kills })
     if (scoreRef.current > highScoreRef.current) {
+      localStorage.setItem('voidHighScore', String(scoreRef.current))
       setHighScore(scoreRef.current)
       setIsNewRecord(true)
     }
@@ -1084,7 +1085,7 @@ export default function App() {
   useEffect(() => {
     ensureAuth().then(uid => {
       setUid(uid)
-      fetchMyBest(uid).then(setHighScore).catch(() => {})
+      fetchMyBest(uid).then(v => { localStorage.removeItem('voidHighScore'); setHighScore(v) }).catch(() => {})
     })
   }, [])
 
