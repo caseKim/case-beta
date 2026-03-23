@@ -387,7 +387,6 @@ export default function App() {
   const energyCurRef          = useRef(null)
   const energyLastRechargeRef = useRef(0)
   const [tabHidden,  setTabHidden]  = useState(false)
-  const tabHiddenRef = useRef(false)
   const hiddenAtRef  = useRef(0)
   const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
   const [nicknameInput, setNicknameInput] = useState(() => localStorage.getItem('voidNickname') ? '' : makeDefaultNickname())
@@ -1187,19 +1186,16 @@ export default function App() {
     if (!started || gameOver) return
     const onVisibility = () => {
       if (document.hidden) {
-        tabHiddenRef.current = true
         hiddenAtRef.current = Date.now()
         setTabHidden(true)
       } else {
-        const elapsed = Date.now() - hiddenAtRef.current
-        phaseStartRef.current += elapsed  // shift phase start so remaining time is preserved
-        tabHiddenRef.current = false
+        phaseStartRef.current += Date.now() - hiddenAtRef.current
         setTabHidden(false)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [started, gameOver])
+  }, [started])
 
   useEffect(() => {
     if (!started) loadLeaderboard('today')
