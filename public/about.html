@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>About – Void Survivor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+    }
+    .container { max-width: 600px; width: 100%; }
+    h1 { font-size: 2rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subtitle { color: #888; font-size: 0.95rem; margin-bottom: 40px; }
+    h2 { font-size: 1.1rem; font-weight: 600; color: #ccc; margin: 32px 0 12px; }
+    p { line-height: 1.7; color: #aaa; font-size: 0.95rem; margin-bottom: 12px; }
+    a { color: #5ac8fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .back { display: inline-block; margin-bottom: 40px; color: #5ac8fa; font-size: 0.9rem; }
+    hr { border: none; border-top: 1px solid #1e1e2e; margin: 40px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="/">← 게임으로 돌아가기</a>
+    <h1>Void Survivor</h1>
+    <p class="subtitle">case-beta-kappa.vercel.app</p>
+
+    <h2>게임 소개</h2>
+    <p>
+      Void Survivor는 브라우저에서 바로 즐기는 아케이드 슈팅 게임입니다.
+      끊임없이 쏟아지는 적들을 피하고 처치하며 최대한 오래 생존하세요.
+      스테이지가 올라갈수록 더 강하고 다양한 적이 등장합니다.
+    </p>
+    <p>
+      레벨업 시 무작위 업그레이드 카드를 선택해 자신만의 빌드를 만들고,
+      글로벌 리더보드에서 다른 플레이어와 점수를 겨뤄보세요.
+    </p>
+
+    <h2>기술 스택</h2>
+    <p>
+      React + HTML Canvas로 제작된 싱글 페이지 웹앱입니다.
+      사용자 인증 및 리더보드 데이터는 Google Firebase(Firestore)로 관리됩니다.
+    </p>
+
+    <hr />
+
+    <h2>문의</h2>
+    <p>
+      버그 제보나 문의는 아래 이메일로 연락해 주세요.<br />
+      <a href="mailto:case.shkim@gmail.com">case.shkim@gmail.com</a>
+    </p>
+
+    <p style="margin-top: 40px; font-size: 0.8rem; color: #555;">
+      <a href="/privacy-policy.html">개인정보처리방침</a>
+    </p>
+  </div>
+</body>
+</html>

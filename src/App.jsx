@@ -221,6 +221,7 @@ function pickCards(stats, player) {
 
 const mono    = { fontFamily: 'monospace' }
 const overlay = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
+const footerLink = { ...mono, color: '#333', fontSize: 10, letterSpacing: 1, textDecoration: 'none' }
 const RECORD_CSS = `@keyframes recordPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}@keyframes recordGlow{0%,100%{text-shadow:0 0 12px #ffe600}50%{text-shadow:0 0 32px #ffe600,0 0 60px rgba(255,230,0,0.6)}}`
 
 function GameIcon({ name, size = 44, color = '#b388ff' }) {
@@ -1345,6 +1346,11 @@ export default function App() {
                   )}
                 </div>
               )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
+              <a href="/about.html" style={footerLink}>ABOUT</a>
+              <a href="/privacy-policy.html" style={footerLink}>PRIVACY POLICY</a>
             </div>
           </div>
         )}
