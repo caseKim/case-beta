@@ -50,6 +50,13 @@ export async function submitScore({ uid, nickname, score, kills, time, stage }) 
   })
 }
 
+export async function fetchMyBest(uid) {
+  const q = query(scoresRef, where('uid', '==', uid))
+  const snap = await getDocs(q)
+  if (snap.empty) return 0
+  return Math.max(...snap.docs.map(d => d.data().score))
+}
+
 export async function fetchLeaderboard(tab, uid) {
   let q
   if (tab === 'today') {

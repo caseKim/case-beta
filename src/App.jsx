@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ensureAuth, submitScore, fetchLeaderboard } from './firebase'
+import { ensureAuth, submitScore, fetchLeaderboard, fetchMyBest } from './firebase'
 
 // Fixed logical resolution — 9:16 (standard mobile)
 const GAME_W = 390
@@ -134,20 +134,20 @@ const CANVAS_STYLE = {
 const UPGRADES = [
   { icon: 'rapid',   label: 'Rapid Fire',    desc: 'Shoot interval -50ms',  apply: s     => { s.shootInterval = Math.max(100, s.shootInterval - 50) } },
   { icon: 'power',   label: 'Power Up',      desc: 'Bullet power +0.5',     apply: s     => { s.bulletPower += 0.5 } },
-  { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 14; p.shieldPower = 1 } },
+  { icon: 'shield',      label: 'Shield',       desc: 'Activate shield',    noDouble: true, apply: (s,p) => { p.shieldActive = true; p.shieldR = p.r + 14; p.shieldPower = 1 } },
   { icon: 'shieldrange', label: 'Shield Range', desc: 'Shield radius +8',   apply: (s,p) => { p.shieldR += 8 } },
   { icon: 'shieldpower', label: 'Shield Power', desc: 'Shield power +1',    apply: (s,p) => { p.shieldPower += 1 } },
   { icon: 'addshot', label: 'Add Shot',      desc: '+1 bullet (spread)',    apply: s     => { s.shotCount += 1 } },
-  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4; p.leftWingLaserCount = 1 } },
-  { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0; p.rightWingMissileCount = 1 } },
+  { icon: 'wingR',   label: 'Left Wing',    desc: 'Laser 1 dmg/s',         noDouble: true, apply: (s,p) => { p.leftWing = true;  p.leftWingLevel = 1; p.laserDps = 0.4; p.leftWingLaserCount = 1 } },
+  { icon: 'wingL',   label: 'Right Wing',   desc: 'Homing missile (pow 2)', noDouble: true, apply: (s,p) => { p.rightWing = true; p.rightWingLevel = 1; p.rightWingPower = 2; p.rightWingLastShot = 0; p.rightWingMissileCount = 1 } },
   { icon: 'wingRup',   label: 'Left Wing Power+',  desc: 'Laser power +0.2/s',          apply: (s,p) => { p.leftWingLevel = 2; p.laserDps += 0.2 } },
   { icon: 'lasercount', label: 'Left Wing Shot+',  desc: '+1 laser beam per frame',     apply: (s,p) => { p.leftWingLaserCount += 1 } },
   { icon: 'wingLup',      label: 'Right Wing Power+', desc: 'Missile power +1',            apply: (s,p) => { p.rightWingLevel = 2; p.rightWingPower += 1 } },
   { icon: 'missilecount', label: 'Right Wing Shot+',  desc: '+1 homing missile per salvo', apply: (s,p) => { p.rightWingMissileCount += 1 } },
-  { icon: 'cannon',      label: 'Cannon',       desc: 'AoE mortar (pow 5, r 65)', apply: (s,p) => { p.cannonActive = true; p.cannonPower = CANNON_BASE_POWER; p.cannonRadius = CANNON_BASE_RADIUS; p.cannonLastShot = 0 } },
+  { icon: 'cannon',      label: 'Cannon',       desc: 'AoE mortar (pow 5, r 65)', noDouble: true, apply: (s,p) => { p.cannonActive = true; p.cannonPower = CANNON_BASE_POWER; p.cannonRadius = CANNON_BASE_RADIUS; p.cannonLastShot = 0 } },
   { icon: 'cannonpower', label: 'Cannon Power+', desc: 'Cannon damage +2',         apply: (s,p) => { p.cannonPower += 2 } },
   { icon: 'cannonrange', label: 'Cannon Range+', desc: 'Blast radius +15',         apply: (s,p) => { p.cannonRadius += 15 } },
-  { icon: 'orb',      label: 'Orb',      desc: 'Orbiting orb (dmg 1.5)',  apply: (s,p) => { p.orbActive = true; p.orbCount = 1; p.orbAngle = 0 } },
+  { icon: 'orb',      label: 'Orb',      desc: 'Orbiting orb (dmg 1.5)',  noDouble: true, apply: (s,p) => { p.orbActive = true; p.orbCount = 1; p.orbAngle = 0 } },
   { icon: 'orbcount', label: 'Add Orb',  desc: '+1 orbiting orb',         apply: (s,p) => { p.orbCount += 1 } },
 ]
 
@@ -181,7 +181,7 @@ function collides(a, b) {
 }
 
 function pickCards(stats, player) {
-  return [...UPGRADES]
+  const picked = [...UPGRADES]
     .filter(u => {
       if (u.icon === 'addshot' && stats.shotCount >= 7) return false
       if (u.icon === 'rapid' && stats.shootInterval <= 100) return false
@@ -201,14 +201,29 @@ function pickCards(stats, player) {
     })
     .sort(() => Math.random() - 0.5)
     .slice(0, 3)
+
+  // 20% chance to upgrade one slot to a ×2 rare card (activation-only cards excluded)
+  const doubleEligible = picked.map((c, i) => ({ c, i })).filter(({ c }) => !c.noDouble)
+  if (doubleEligible.length > 0 && Math.random() < 0.20) {
+    const { c: base, i: slot } = doubleEligible[Math.floor(Math.random() * doubleEligible.length)]
+    picked[slot] = {
+      icon: base.icon,
+      label: `×2 ${base.label}`,
+      desc: base.desc,
+      rare: true,
+      apply: (s, p) => { base.apply(s, p); base.apply(s, p) },
+    }
+  }
+
+  return picked
 }
 
 const mono    = { fontFamily: 'monospace' }
 const overlay = { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }
 const RECORD_CSS = `@keyframes recordPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}@keyframes recordGlow{0%,100%{text-shadow:0 0 12px #ffe600}50%{text-shadow:0 0 32px #ffe600,0 0 60px rgba(255,230,0,0.6)}}`
 
-function GameIcon({ name, size = 44 }) {
-  const g = { stroke: '#b388ff', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
+function GameIcon({ name, size = 44, color = '#b388ff' }) {
+  const g = { stroke: color, strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
   const v = `0 0 ${size} ${size}`
   const h = size / 2, q = size / 4, t = size * 3 / 4
 
@@ -229,12 +244,12 @@ function GameIcon({ name, size = 44 }) {
   if (name === 'shield') // Outer ring (shield) + inner dot (player)
     return <svg width={size} height={size} viewBox={v}><g {...g}>
       <circle cx={h} cy={h} r={size*0.38}/>
-      <circle cx={h} cy={h} r={6} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={6} fill={color}/>
     </g></svg>
 
   if (name === 'shieldrange') // Expanding rings outward
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={5} fill={color}/>
       <circle cx={h} cy={h} r={12} strokeOpacity={0.7}/>
       <circle cx={h} cy={h} r={size*0.38} strokeOpacity={0.4}/>
       <line x1={h} y1={q-2} x2={h} y2={q-8}/>
@@ -315,7 +330,7 @@ function GameIcon({ name, size = 44 }) {
   if (name === 'cannon' || name === 'cannonpower' || name === 'cannonrange') {
     const arc = `M ${q+4} ${t-2} Q ${h+6} ${q-2} ${t} ${h}`
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={q} cy={t} r={4} fill='#b388ff'/>
+      <circle cx={q} cy={t} r={4} fill={color}/>
       <path d={arc} fill="none"/>
       {name === 'cannon' && <><circle cx={t} cy={h} r={5}/><circle cx={t} cy={h} r={11} strokeOpacity={0.55}/></>}
       {name === 'cannonpower' && <><circle cx={t} cy={h} r={5}/><line x1={t-9} y1={h} x2={t+9} y2={h}/><line x1={t} y1={h-9} x2={t} y2={h+9}/></>}
@@ -325,14 +340,14 @@ function GameIcon({ name, size = 44 }) {
 
   if (name === 'orb') // Center dot with one orbiting circle
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={5} fill={color}/>
       <circle cx={h} cy={h} r={size*0.36} strokeOpacity={0.3} strokeDasharray="3 4"/>
       <circle cx={h + size*0.36} cy={h} r={7}/>
     </g></svg>
 
   if (name === 'orbcount') // Center dot with two orbiting circles
     return <svg width={size} height={size} viewBox={v}><g {...g}>
-      <circle cx={h} cy={h} r={5} fill='#b388ff'/>
+      <circle cx={h} cy={h} r={5} fill={color}/>
       <circle cx={h} cy={h} r={size*0.36} strokeOpacity={0.3} strokeDasharray="3 4"/>
       <circle cx={h + size*0.36} cy={h} r={6}/>
       <circle cx={h - size*0.36} cy={h} r={6}/>
@@ -360,7 +375,9 @@ export default function App() {
   const [stage,        setStage]        = useState(1)
   const [stageAnn,     setStageAnn]    = useState(0)      // 0 = hidden
   const [waveWarning,  setWaveWarning] = useState(false)
-  const [highScore,    setHighScore]   = useState(() => parseInt(localStorage.getItem('voidHighScore') || '0'))
+  const [highScore,    setHighScore_]  = useState(0)
+  const highScoreRef = useRef(0)
+  const setHighScore = (v) => { highScoreRef.current = v; setHighScore_(v) }
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
   const [uid,          setUid]         = useState('')
@@ -448,7 +465,7 @@ export default function App() {
       const shooter  = !fast && rand >= 0.90
       const homing   = !fast && !shooter && rand >= 0.85
       const speedScale = 1 + (s - 1) * 0.025
-      const baseHp = 1 + Math.floor(s / 4)
+      const baseHp = 1 + Math.floor(s / 4) + Math.floor(s / 3)
       const splitter = !fast && !shooter && !homing && rand >= 0.80 && baseHp >= 2
       const ghost    = !fast && !shooter && !homing && !splitter && rand >= 0.75 && s >= 7
       const armored  = !fast && !shooter && !homing && !splitter && !ghost && rand >= 0.70 && s >= 10
@@ -886,6 +903,17 @@ export default function App() {
         if (invincible) ctx.globalAlpha = 0.2 + 0.15 * Math.sin(e.ghostTick * 0.25)
         const hitPlayer = !invincible && collides(e, p) && invincibleRef.current <= 0
         drawCircle(ctx, e.x, e.y, e.r, e.color, invincible ? 16 : 6)
+        // Shield-killable dot
+        if (p.shieldActive && e.hp <= p.shieldPower) {
+          ctx.beginPath()
+          ctx.arc(e.x, e.y - e.r * 0.55, Math.min(3, e.r * 0.3), 0, Math.PI * 2)
+          ctx.strokeStyle = '#00e5ff'
+          ctx.shadowColor = '#00e5ff'
+          ctx.shadowBlur = 8
+          ctx.lineWidth = 1.2
+          ctx.stroke()
+          ctx.shadowBlur = 0
+        }
         ctx.globalAlpha = 1
         if (hitPlayer) { gameOverRef.current = true; setGameOver(true); return }
         // HP arc gauge — curved inside bottom of enemy circle
@@ -1023,9 +1051,7 @@ export default function App() {
     const secs = Math.floor(timeRef.current / 60)
     const kills = killCountRef.current
     setFinalStats({ time: secs, kills })
-    const prev = parseInt(localStorage.getItem('voidHighScore') || '0')
-    if (scoreRef.current > prev) {
-      localStorage.setItem('voidHighScore', String(scoreRef.current))
+    if (scoreRef.current > highScoreRef.current) {
       setHighScore(scoreRef.current)
       setIsNewRecord(true)
     }
@@ -1055,7 +1081,12 @@ export default function App() {
     }
   }
 
-  useEffect(() => { ensureAuth().then(setUid) }, [])
+  useEffect(() => {
+    ensureAuth().then(uid => {
+      setUid(uid)
+      fetchMyBest(uid).then(setHighScore).catch(() => {})
+    })
+  }, [])
 
   useEffect(() => {
     if (!started) loadLeaderboard('today')
@@ -1210,19 +1241,25 @@ export default function App() {
           <div style={{ ...overlay, background: 'rgba(10,10,15,0.72)', gap: 16, padding: '0 12px' }}>
             <div style={{ ...mono, color: '#b388ff', fontSize: 22, letterSpacing: 4, textShadow: '0 0 12px #b388ff' }}>LEVEL UP</div>
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
-              {cards.map((c) => (
-                <button key={c.label} onClick={() => selectCard(c)} style={{
-                  flex: 1, padding: '28px 8px 24px',
-                  background: '#0d0d1a', border: '1px solid #b388ff',
-                  borderRadius: 12, cursor: 'pointer', textAlign: 'center',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-                  WebkitTapHighlightColor: 'transparent',
-                }}>
-                  <GameIcon name={c.icon}/>
-                  <div style={{ ...mono, color: '#b388ff', fontSize: 12 }}>{c.label}</div>
-                  <div style={{ ...mono, color: '#555', fontSize: 11, lineHeight: 1.5 }}>{c.desc}</div>
-                </button>
-              ))}
+              {cards.map((c) => {
+                const accent    = c.rare ? '#ffd600' : '#b388ff'
+                const bg        = c.rare ? '#1a1500' : '#0d0d1a'
+                const descColor = c.rare ? '#b38800' : '#555'
+                return (
+                  <button key={c.label} onClick={() => selectCard(c)} style={{
+                    flex: 1, padding: '28px 8px 24px',
+                    background: bg, border: `1px solid ${accent}`,
+                    borderRadius: 12, cursor: 'pointer', textAlign: 'center',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+                    WebkitTapHighlightColor: 'transparent',
+                    boxShadow: c.rare ? `0 0 12px rgba(255,214,0,0.25)` : 'none',
+                  }}>
+                    <GameIcon name={c.icon} color={accent}/>
+                    <div style={{ ...mono, color: accent, fontSize: 12 }}>{c.label}</div>
+                    <div style={{ ...mono, color: descColor, fontSize: 11, lineHeight: 1.5 }}>{c.desc}</div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
