@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'
-import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp } from 'firebase/firestore'
+import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, limit, serverTimestamp, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore'
+
+export const ENERGY_MAX = 10
+export const ENERGY_RECHARGE_MS = 5 * 60 * 1000
 
 const app = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -48,6 +51,45 @@ export async function submitScore({ uid, nickname, score, kills, time, stage }) 
     date: getDateKey(),
     yearWeek: getWeekKey(),
   })
+}
+
+export async function fetchEnergy(uid) {
+  const ref = doc(db, 'users', uid)
+  const snap = await getDoc(ref)
+  const now = Date.now()
+
+  if (!snap.exists()) {
+    await setDoc(ref, { energy: ENERGY_MAX, lastRechargeAt: now })
+    return { energy: ENERGY_MAX, lastRechargeAt: now }
+  }
+
+  let { energy = ENERGY_MAX, lastRechargeAt = now } = snap.data()
+
+  // Apply offline recharge (only when below ENERGY_MAX; gifts can push above it)
+  if (energy < ENERGY_MAX) {
+    const ticks = Math.floor((now - lastRechargeAt) / ENERGY_RECHARGE_MS)
+    if (ticks > 0) {
+      energy = Math.min(ENERGY_MAX, energy + ticks)
+      lastRechargeAt = lastRechargeAt + ticks * ENERGY_RECHARGE_MS
+      await updateDoc(ref, { energy, lastRechargeAt })
+    }
+  }
+
+  return { energy, lastRechargeAt }
+}
+
+export async function saveEnergyState(uid, energy, lastRechargeAt) {
+  await updateDoc(doc(db, 'users', uid), { energy, lastRechargeAt })
+}
+
+// 선물/이벤트로 에너지 지급 — ENERGY_MAX 초과 허용
+// 오프라인 충전을 먼저 정산한 뒤 amount를 더함
+export async function giftEnergy(uid, amount) {
+  const { energy: cur } = await fetchEnergy(uid)  // 정산 포함된 현재값
+  const newEnergy = cur + amount
+  // 결과가 MAX 미만이면 지금부터 충전 타이머 시작, 이상이면 타이머 무관
+  await updateDoc(doc(db, 'users', uid), { energy: newEnergy, lastRechargeAt: Date.now() })
+  return newEnergy
 }
 
 export async function fetchMyBest(uid) {

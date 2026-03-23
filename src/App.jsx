@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ensureAuth, submitScore, fetchLeaderboard, fetchMyBest } from './firebase'
+import { ensureAuth, submitScore, fetchLeaderboard, fetchMyBest, fetchEnergy, saveEnergyState, ENERGY_MAX, ENERGY_RECHARGE_MS } from './firebase'
 
 // Fixed logical resolution — 9:16 (standard mobile)
 const GAME_W = 390
@@ -49,6 +49,7 @@ const ORB_SPEED        = 0.045  // radians per frame
 const ORB_DAMAGE       = 1.5    // damage per hit
 const ORB_HIT_INTERVAL = 800    // ms cooldown per enemy
 const DEFAULT_STATS     = { bulletSpeed: 5, bulletR: 3, bulletPower: 1, shootInterval: 650, shotCount: 1 }
+const ENERGY_COST       = 2
 
 const NICKNAME_ADJS = [
   'VOID','NEON','DARK','IRON','SWIFT','COLD','DEAD','LOST','WILD','PALE',
@@ -381,6 +382,10 @@ export default function App() {
   const [isNewRecord,  setIsNewRecord] = useState(false)
   const [finalStats,   setFinalStats]  = useState({ time: 0, kills: 0 })
   const [uid,          setUid]         = useState('')
+  const [energy,       setEnergy]      = useState(null)   // null = loading
+  const [nextRechargeSec, setNextRechargeSec] = useState(0)
+  const energyCurRef          = useRef(null)
+  const energyLastRechargeRef = useRef(0)
   const [nickname,     setNickname]    = useState(() => localStorage.getItem('voidNickname') || '')
   const [nicknameInput, setNicknameInput] = useState(() => localStorage.getItem('voidNickname') ? '' : makeDefaultNickname())
   const [lbTab,    setLbTab]    = useState('today')
@@ -1061,6 +1066,65 @@ export default function App() {
     }
   }, [gameOver])
 
+  const canStart = energy !== null && energy >= ENERGY_COST
+
+  const renderEnergyBar = (showStatus = false) => {
+    const cur = energy ?? 0
+    const filled = Math.min(cur, ENERGY_MAX)
+    const overflow = cur > ENERGY_MAX ? cur - ENERGY_MAX : 0
+    const mm = String(Math.floor(nextRechargeSec / 60)).padStart(2, '0')
+    const ss = String(nextRechargeSec % 60).padStart(2, '0')
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <style>{`@keyframes costBlink{0%,100%{opacity:0.25}50%{opacity:0.6}}`}</style>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          {Array.from({ length: ENERGY_MAX }, (_, i) => {
+            const isFilled = i < filled
+            const isCost = canStart && i >= filled - ENERGY_COST && i < filled
+            return (
+              <div key={i} style={{
+                width: 20, height: 9, borderRadius: 2,
+                background: isFilled ? '#00e5ff' : '#1a1a2e',
+                boxShadow: isFilled && !isCost ? '0 0 5px rgba(0,229,255,0.5)' : 'none',
+                animation: isCost ? 'costBlink 1.2s ease-in-out infinite' : 'none',
+              }} />
+            )
+          })}
+          {overflow > 0 && <span style={{ ...mono, color: '#ffe600', fontSize: 10, marginLeft: 4 }}>+{overflow}</span>}
+        </div>
+        {showStatus && (
+          <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: canStart ? '#333' : '#ff453a' }}>
+            {energy === null ? '...' : canStart ? `${cur} / ${ENERGY_MAX}` : 'NOT ENOUGH ENERGY'}
+          </div>
+        )}
+        {cur < ENERGY_MAX && nextRechargeSec > 0 && (
+          <div style={{ ...mono, color: '#444', fontSize: 10 }}>NEXT IN {mm}:{ss}</div>
+        )}
+      </div>
+    )
+  }
+
+  const consumeEnergy = () => {
+    const newE = energy - ENERGY_COST
+    const newLast = energy >= ENERGY_MAX ? Date.now() : energyLastRechargeRef.current
+    setEnergy(newE)
+    energyCurRef.current = newE
+    energyLastRechargeRef.current = newLast
+    saveEnergyState(uid, newE, newLast).catch(() => {})
+  }
+
+  const startGame = () => {
+    if (energy === null || energy < ENERGY_COST) return
+    consumeEnergy()
+    setStarted(true)
+  }
+
+  const handleRestart = () => {
+    if (energy === null || energy < ENERGY_COST) return
+    consumeEnergy()
+    restart()
+  }
+
   const confirmNickname = () => {
     const n = nicknameInput.trim() || makeDefaultNickname()
     localStorage.setItem('voidNickname', n)
@@ -1086,8 +1150,34 @@ export default function App() {
     ensureAuth().then(uid => {
       setUid(uid)
       fetchMyBest(uid).then(v => { localStorage.removeItem('voidHighScore'); setHighScore(v) }).catch(() => {})
+      fetchEnergy(uid).then(({ energy: e, lastRechargeAt }) => {
+        setEnergy(e)
+        energyCurRef.current = e
+        energyLastRechargeRef.current = lastRechargeAt
+      }).catch(() => { setEnergy(ENERGY_MAX); energyCurRef.current = ENERGY_MAX })
     })
   }, [])
+
+  // Recharge timer: ticks every second, adds 1 energy per ENERGY_RECHARGE_MS
+  useEffect(() => {
+    if (!uid) return
+    const id = setInterval(() => {
+      const cur = energyCurRef.current
+      if (cur === null || cur >= ENERGY_MAX) { setNextRechargeSec(0); return }
+      const remaining = ENERGY_RECHARGE_MS - (Date.now() - energyLastRechargeRef.current)
+      if (remaining <= 0) {
+        const newE = Math.min(ENERGY_MAX, cur + 1)
+        const newLast = energyLastRechargeRef.current + ENERGY_RECHARGE_MS
+        energyCurRef.current = newE
+        energyLastRechargeRef.current = newLast
+        setEnergy(newE)
+        saveEnergyState(uid, newE, newLast).catch(() => {})
+      } else {
+        setNextRechargeSec(Math.ceil(remaining / 1000))
+      }
+    }, 1000)
+    return () => clearInterval(id)
+  }, [uid])
 
   useEffect(() => {
     if (!started) loadLeaderboard('today')
@@ -1173,19 +1263,23 @@ export default function App() {
                 }}>CONFIRM</button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ ...mono, color: '#444', fontSize: 11, letterSpacing: 2 }}>PLAYER</div>
                   <div style={{ ...mono, color: '#00e5ff', fontSize: 15, letterSpacing: 3 }}>{nickname}</div>
                   <button onClick={() => { setNickname(''); setNicknameInput('') }} style={{ background: 'none', border: 'none', color: '#444', fontSize: 11, cursor: 'pointer', ...mono, padding: 0 }}>✕</button>
                 </div>
-                <button onClick={() => setStarted(true)} style={{
-                  background: 'transparent', border: '1px solid #00e5ff',
-                  color: '#00e5ff', ...mono, fontSize: 16, letterSpacing: 4,
-                  padding: '14px 40px', borderRadius: 6, cursor: 'pointer',
-                  textShadow: '0 0 10px #00e5ff', boxShadow: '0 0 16px rgba(0,229,255,0.2)',
+                <button onClick={startGame} disabled={!canStart} style={{
+                  background: 'transparent',
+                  border: `1px solid ${canStart ? '#00e5ff' : '#2a3a3a'}`,
+                  color: canStart ? '#00e5ff' : '#2a5a5a',
+                  ...mono, fontSize: 16, letterSpacing: 4,
+                  padding: '14px 40px', borderRadius: 6, cursor: canStart ? 'pointer' : 'default',
+                  textShadow: canStart ? '0 0 10px #00e5ff' : 'none',
+                  boxShadow: canStart ? '0 0 16px rgba(0,229,255,0.2)' : 'none',
                   WebkitTapHighlightColor: 'transparent',
                 }}>START</button>
+                {renderEnergyBar(true)}
               </div>
             )}
 
@@ -1312,10 +1406,11 @@ export default function App() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                <button onClick={restart} style={{
-                  background: '#00e5ff', color: '#0a0a0f',
+                <button onClick={handleRestart} disabled={!canStart} style={{
+                  background: canStart ? '#00e5ff' : '#0d2a2e',
+                  color: canStart ? '#0a0a0f' : '#1a5a5a',
                   border: 'none', padding: '14px 28px', ...mono,
-                  fontSize: 17, cursor: 'pointer', borderRadius: 6,
+                  fontSize: 17, cursor: canStart ? 'pointer' : 'default', borderRadius: 6,
                   WebkitTapHighlightColor: 'transparent',
                 }}>
                   RESTART
@@ -1329,6 +1424,7 @@ export default function App() {
                   MENU
                 </button>
               </div>
+              {renderEnergyBar()}
             </div>
           )
         })()}
