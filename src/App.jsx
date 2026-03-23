@@ -355,6 +355,20 @@ function GameIcon({ name, size = 44, color = '#b388ff' }) {
       <circle cx={h - size*0.36} cy={h} r={6}/>
     </g></svg>
 
+  if (name === 'share') // Arrow up from tray (share)
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <polyline points={`${h-7},${h-2} ${h},${q+2} ${h+7},${h-2}`}/>
+      <line x1={h} y1={q+2} x2={h} y2={h+10}/>
+      <polyline points={`${q+4},${h+6} ${q+4},${t-4} ${t-4},${t-4} ${t-4},${h+6}`}/>
+    </g></svg>
+
+  if (name === 'menu') // Three horizontal lines (hamburger)
+    return <svg width={size} height={size} viewBox={v}><g {...g}>
+      <line x1={q} y1={h-8} x2={t} y2={h-8}/>
+      <line x1={q} y1={h} x2={t} y2={h}/>
+      <line x1={q} y1={h+8} x2={t} y2={h+8}/>
+    </g></svg>
+
   return null
 }
 
@@ -1449,20 +1463,20 @@ export default function App() {
                     navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'))
                   }
                 }} style={{
-                  background: 'transparent', color: '#b388ff',
-                  border: '1px solid #3a2a5a', padding: '14px 20px', ...mono,
-                  fontSize: 14, cursor: 'pointer', borderRadius: 6,
+                  background: 'transparent', border: '1px solid #3a2a5a',
+                  padding: '10px', cursor: 'pointer', borderRadius: 6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
-                  SHARE
+                  <GameIcon name="share" size={24} color="#b388ff"/>
                 </button>
                 <button onClick={() => { restart(); setStarted(false) }} style={{
-                  background: 'transparent', color: '#555',
-                  border: '1px solid #333', padding: '14px 20px', ...mono,
-                  fontSize: 14, cursor: 'pointer', borderRadius: 6,
+                  background: 'transparent', border: '1px solid #333',
+                  padding: '10px', cursor: 'pointer', borderRadius: 6,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
                   WebkitTapHighlightColor: 'transparent',
                 }}>
-                  MENU
+                  <GameIcon name="menu" size={24} color="#555"/>
                 </button>
               </div>
               {renderEnergyBar()}
