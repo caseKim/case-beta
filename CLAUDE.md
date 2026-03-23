@@ -60,8 +60,10 @@ Key refs:
 | `stagePhaseRef` | `'playing' \| 'warning' \| 'wave'` |
 | `phaseStartRef` | `Date.now()` when the current playing/warning phase began — used to resume with correct remaining time after level-up pause |
 | `waveRemainingRef` | enemies still to be spawned in the current wave (survives pause) |
+| `energyCurRef` | current energy value for recharge interval (avoids stale closure) |
+| `energyLastRechargeRef` | unix ms timestamp of last recharge tick — used to calculate offline recharge on load |
 
-React state (`score`, `xp`, `level`, `stage`, `cards`, `gameOver`, `highScore`, `isNewRecord`, `finalStats`) exists solely to drive the HUD and overlays.
+React state (`score`, `xp`, `level`, `stage`, `cards`, `gameOver`, `highScore`, `isNewRecord`, `finalStats`, `energy`, `nextRechargeSec`) exists solely to drive the HUD and overlays.
 
 ### Pause mechanism
 `paused` is derived — not stored: `const paused = cards.length > 0`. Setting `setCards([...])` pauses the game; `setCards([])` resumes it. Both the rAF loop and the enemy spawner `useEffect` depend on `[gameOver, paused]` and return early when either is true.

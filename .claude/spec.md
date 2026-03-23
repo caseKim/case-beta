@@ -179,19 +179,41 @@
 
 ---
 
+## 에너지 시스템
+
+- 최대 에너지: 10 (`ENERGY_MAX`)
+- 게임 1판 소비: 2 (`ENERGY_COST`)
+- 충전 속도: 5분마다 +1 (`ENERGY_RECHARGE_MS = 5 * 60 * 1000`)
+- 초기값: 신규 유저는 풀(10)로 시작
+- 저장: Firestore `users/{uid}` 문서 (`energy`, `lastRechargeAt` 필드)
+- 오프라인 충전: 앱 로드 시 `(now - lastRechargeAt) / 5분` 만큼 일괄 충전 (최대 `ENERGY_MAX`까지)
+- 에너지 부족 시 START/RESTART 버튼 비활성화
+- 선물/이벤트로 `ENERGY_MAX` 초과 가능 — `giftEnergy(uid, amount)` 사용 (오프라인 충전 정산 후 지급)
+- 충전은 `energy < ENERGY_MAX`일 때만 진행
+
+### 에너지 바 UI
+- 피프 10칸 (가로 20px × 높이 9px), 충전된 칸: `#00e5ff`
+- START/RESTART 시 소모될 2칸은 점멸 애니메이션 (`costBlink`)
+- 에너지 부족 시 "NOT ENOUGH ENERGY" (빨강), 정상 시 `{cur} / {ENERGY_MAX}` (회색)
+- `energy < ENERGY_MAX`이면 "NEXT IN MM:SS" 카운트다운 표시
+- 선물로 `ENERGY_MAX` 초과 시 "+N" 골드 텍스트 표시
+- 위치: 시작 화면은 START 버튼 아래, 게임오버 화면은 버튼 아래
+
+---
+
 ## 시작 화면
 
 - 최초 접속 시 게임 루프/스폰 비활성 상태로 대기
-- 오버레이: 타이틀("VOID / SURVIVOR") + START 버튼
-- START 버튼 클릭 시 게임 시작
-- 재시작(RESTART) 시에는 시작 화면 없이 바로 게임 진입
+- 오버레이: 타이틀("VOID / SURVIVOR") + 닉네임 + START 버튼 + 에너지 바 + 리더보드
+- START 버튼 클릭 시 에너지 2 소비 후 게임 시작
+- 재시작(RESTART) 시에는 시작 화면 없이 바로 게임 진입 (에너지 2 소비)
 
 ---
 
 ## 게임 오버
 
 - 적이 플레이어에 닿으면 즉시 게임 오버
-- 오버레이: "GAME OVER" + 최종 점수 + 플레이 시간(mm:ss) + 처치 수 + RESTART 버튼
+- 오버레이: "GAME OVER" + 최종 점수 + 플레이 시간(mm:ss) + 처치 수 + RESTART/MENU 버튼 + 에너지 바
 - 최고기록 경신 시 "NEW RECORD!" pulse/glow 애니메이션 표시
 - 미경신 시 이전 최고기록 "BEST {n}" 표시
 
