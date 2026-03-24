@@ -30,17 +30,17 @@ export function ensureAuth() {
 
 function getDateKey() {
   const d = new Date()
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function getWeekKey() {
   const d = new Date()
   // ISO 8601: Thursday of the current week determines the year and week number
   const thu = new Date(d)
-  thu.setUTCDate(d.getUTCDate() + (4 - (d.getUTCDay() || 7)))
-  const year = thu.getUTCFullYear()
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const week = Math.ceil(((thu - jan4) / 86400000 + (jan4.getUTCDay() || 7) - 3) / 7)
+  thu.setDate(d.getDate() + (4 - (d.getDay() || 7)))
+  const year = thu.getFullYear()
+  const jan4 = new Date(year, 0, 4)
+  const week = Math.ceil(((thu - jan4) / 86400000 + (jan4.getDay() || 7) - 3) / 7)
   return `${year}-${String(week).padStart(2, '0')}`
 }
 
